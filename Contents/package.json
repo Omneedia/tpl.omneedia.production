@@ -1,0 +1,30 @@
+{
+  "name": "framework.omneedia.worker",
+  "version": "0.1.0",
+  "description": "Worker",
+  "main": "worker.js",
+  "dependencies": {
+    "body-parser": "*",
+    "compression": "*",
+    "cookie-parser": "*",
+    "express": "*",
+    "os-utils": "*",
+    "morgan": "*",
+    "request": "*",
+    "wrench": "*",
+	"sessionstore": "*",
+	"mongodb": "*",
+	"mysql": "*",
+	"xcas": "*",
+	"express-session": "*",
+	"http-proxy": "0.7",
+	"express-mysql-session": "*",
+	"cookie-parser": "*"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
