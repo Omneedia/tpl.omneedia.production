@@ -13,7 +13,6 @@
     "request": "*",
     "wrench": "*",
 	"sessionstore": "*",
-	"mongodb": "*",
 	"mysql": "*",
 	"xcas": "*",
 	"express-session": "*",
