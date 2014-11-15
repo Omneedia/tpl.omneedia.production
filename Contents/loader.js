@@ -60,7 +60,7 @@ if (cluster.isMaster) {
 				return;			
 			};
 			for (var i = 0; i < numCPUs; i++) {
-				fork('./worker.js',[
+				fork(__dirname+require('path').sep+'worker.js',[
 					reg.cluster,
 					session,
 					reg.uri
