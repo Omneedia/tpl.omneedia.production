@@ -171,6 +171,7 @@ app.use(function (error, req, res, next) {
 app.get('/stats',function(req,res) {
 	res.writeHead(200, {'Content-Type' : 'application/json','charset' : 'utf-8'});
 	var p={};
+
 	p.host=getIPAddress();
 	p.pid=process.pid;
 	p.cluster = {
@@ -450,7 +451,7 @@ if (MSettings.auth) {
 			Auth.user(profile, function (err, response) {
 				req.session.user=response;
 				res.setHeader('content-type','text/html');
-				res.end("<html><body></body></html>");					
+				res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");					
 			});					
 		};
 		if (data.service=="cas") {
@@ -461,7 +462,7 @@ if (MSettings.auth) {
 				console.log(response);
 				req.session.user=response;
 				res.setHeader('content-type','text/html');
-				res.end("<html><body></body></html>");					
+				res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");
 			});				  
 		};
 	});
@@ -686,4 +687,5 @@ Standalone
 	app.listen(port);
 
 }
+
 
