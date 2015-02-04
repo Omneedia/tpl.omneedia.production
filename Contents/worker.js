@@ -141,7 +141,8 @@ app.use(require('compression')());
 if ($_DEBUG) app.use(require('morgan')('combined'));
 
 app.use(require('body-parser').urlencoded({
-	extended: true
+	extended: true,
+	limit: '5000mb'
 }));
 
 app.use(require('body-parser').json({
