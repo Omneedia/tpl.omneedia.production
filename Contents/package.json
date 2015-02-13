@@ -18,7 +18,8 @@
 	"express-session": "*",
 	"http-proxy": "0.7",
 	"express-mysql-session": "*",
-	"cookie-parser": "*"
+	"cookie-parser": "*",
+	"multer": "*"
   },
   "devDependencies": {},
   "scripts": {
