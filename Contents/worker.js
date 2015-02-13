@@ -195,8 +195,8 @@ _EXT_ = function () {
 	}
 	return {
 		getExt: function (path) {
-			var i = path.lastIndexOf('.');
-			return (i < 0) ? '' : path.substr(i);
+			var ext = require('path').extname(path||'').split('.');
+			return ext[ext.length - 1];
 		},
 		getContentType: function (ext) {
 			return extTypes[ext.toLowerCase()] || 'application/octet-stream';
