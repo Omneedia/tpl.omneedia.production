@@ -751,7 +751,8 @@ if (fs.existsSync(PROJECT_SYSTEM+path.sep+"app.js")) {
 			};
 			res.end(JSON.stringify(o));
 		},
-		toBase64: function(filename) {					
+		toBase64: function(filename) {	
+			if (!filename) return "";		
 			var path=__dirname+require('path').sep+'uploads'+require('path').sep+filename;
 			var bin=fs.readFileSync(path);
 			var base64Image = new Buffer(bin, 'binary').toString('base64');	
