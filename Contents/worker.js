@@ -4,7 +4,7 @@
  *
  **/
 
-$_VERSION = "1.0.0";
+$_VERSION = "0.8.9b";
 $_DEBUG = true;
 
 var path=require('path');
@@ -63,6 +63,7 @@ _EXT_ = function () {
 		, "dll"   : "application/x-msdownload"
 		, "dmg"   : "application/octet-stream"
 		, "doc"   : "application/msword"
+		, "docx"   : "application/msword"
 		, "dot"   : "application/msword"
 		, "dtd"   : "application/xml-dtd"
 		, "dvi"   : "application/x-dvi"
@@ -134,6 +135,7 @@ _EXT_ = function () {
 		, "ppm"   : "image/x-portable-pixmap"
 		, "pps"   : "application/vnd.ms-powerpoint"
 		, "ppt"   : "application/vnd.ms-powerpoint"
+		, "pptx"   : "application/vnd.ms-powerpoint"
 		, "ps"    : "application/postscript"
 		, "psd"   : "image/vnd.adobe.photoshop"
 		, "py"    : "text/x-script.python"
@@ -185,6 +187,7 @@ _EXT_ = function () {
 		, "xbm"   : "image/x-xbitmap"
 		, "xhtml"   : "application/xhtml+xml"
 		, "xls"   : "application/vnd.ms-excel"
+		, "xlsx"   : "application/vnd.ms-excel"
 		, "xml"   : "application/xml"
 		, "xpm"   : "image/x-xpixmap"
 		, "xsl"   : "application/xml"
@@ -735,24 +738,27 @@ if (fs.existsSync(PROJECT_SYSTEM+path.sep+"app.js")) {
 	};
 	_App.upload={
 		up: function(req,res,cb) {
-			for (var el in req.files) {};
-			console.log(req.files);
-			if (el) var o={
-				message: req.files[el].name+"|"+req.files[el].fieldname,
-				test: "OK",
-				success: true
-			}; else var o={
-				message: "FATAL_ERROR",
-				test: "OK",
-				success: false
-			};
-			if (cb) {
-				cb(req.files[el].name);
-			};
-			res.end(JSON.stringify(o));
+				for (var el in req.files) {};
+				if (el) {
+					var stat=require('fs').statSync(__dirname+require('path').sep+'uploads'+require('path').sep+req.files[el].name);
+					var size=stat.size;
+					var o={
+						message: req.files[el].name+"|"+req.files[el].fieldname+"|"+_EXT_.getContentType(req.files[el].name)+'|'+size,
+						test: "OK",
+						success: true
+					};
+				} else var o={
+					message: "FATAL_ERROR",
+					test: "OK",
+					success: false
+				};
+				if (cb) {
+					cb(req.files[el].name);
+				};
+				res.end(JSON.stringify(o));
 		},
-		toBase64: function(filename) {	
-			if (!filename) return "";		
+		toBase64: function(filename) {					
+			if (!filename) return "";
 			var path=__dirname+require('path').sep+'uploads'+require('path').sep+filename;
 			var bin=fs.readFileSync(path);
 			var base64Image = new Buffer(bin, 'binary').toString('base64');	
