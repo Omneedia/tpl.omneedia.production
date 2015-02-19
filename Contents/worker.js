@@ -201,8 +201,8 @@ _EXT_ = function () {
 			var ext = require('path').extname(path||'').split('.');
 			return ext[ext.length - 1];
 		},
-		getContentType: function (ext) {
-			return extTypes[ext.toLowerCase()] || 'application/octet-stream';
+		getContentType: function (path) {			
+			return extTypes[this.getExt(path).toLowerCase()] || 'application/octet-stream';
 		}
 	};
 }();
