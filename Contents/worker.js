@@ -1,10 +1,11 @@
 /**
+ *
  *	Omneedia Worker Foundation
  *	v 1.0.0
  *
  **/
 
-$_VERSION = "0.8.9b";
+$_VERSION = "0.9.0a";
 $_DEBUG = true;
 
 var path=require('path');
@@ -388,6 +389,7 @@ app.get('/favicon.ico',function(req,res) {
 
 function process_api(d,i,batch,res)
 {
+	console.log('------------------------------->');
 		if (i>=d.length) {
 			var str = JSON.stringify(batch, 'utf8');
 			res.end(str);
@@ -400,7 +402,11 @@ function process_api(d,i,batch,res)
 			}catch(e){
 			};			
 
-		var x=require(__dirname+path.sep+"api"+path.sep+api.action+".js");
+			if (api.action=="__QUERY__")
+			var x=require(__dirname+path.sep+"node_modules"+path.sep+"db"+path.sep+api.action+".js");
+			else
+			var x=require(__dirname+path.sep+"api"+path.sep+api.action+".js");
+			console.log(x);
 			x.using=function(unit) {
 				if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
 				return require(__dirname+path.sep+'node_modules'+path.sep+unit);
