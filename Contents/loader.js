@@ -69,6 +69,18 @@ if (cluster.isMaster) {
 		};
 		
 	});
+	process.on('SIGTERM',function(){
+		request.post('http://'+reg.cluster.split(':')[0]+':'+reg.cluster.split(':')[1]+'/stop',{form: {ns: NS}},function (error, response, body) {
+			if (error) {
+				console.log('  ! FATAL ERROR: Cluster '+reg.cluster+' not responding.');
+				return;
+			} else {
+				console.log(body);
+			}
+			process.exit(1);
+		});
+        console.log('--> died');        
+	});
 	cluster.on('exit', function(worker, code, signal) {
 		console.log('worker ' + worker.process.pid + ' died');
 	});
