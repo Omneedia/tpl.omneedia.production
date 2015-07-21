@@ -5,7 +5,7 @@
  *
  **/
 
-$_VERSION = "0.9.0a";
+$_VERSION = "0.9.1a";
 $_DEBUG = true;
 
 var path=require('path');
@@ -389,7 +389,6 @@ app.get('/favicon.ico',function(req,res) {
 
 function process_api(d,i,batch,res)
 {
-	console.log('------------------------------->');
 		if (i>=d.length) {
 			var str = JSON.stringify(batch, 'utf8');
 			res.end(str);
