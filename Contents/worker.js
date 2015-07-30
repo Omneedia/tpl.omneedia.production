@@ -296,14 +296,24 @@ Auth = {
 	},
 	login: function(profile,auth_type,cb) {
 		var off="Officer";
-		console.log(PROJECT_WEB);
 		if (fs.existsSync(PROJECT_WEB+path.sep+".."+path.sep+"auth"+path.sep+off+".js")) {
 			var Auth = require(PROJECT_WEB+path.sep+".."+path.sep+"auth"+path.sep+off+".js");
-			Officer.using = function(unit) {
+			Auth.using = function(unit) {
 				if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
 				return require(__dirname+path.sep+'node_modules'+path.sep+unit);
 			};		
-			Officer.login(profile,auth_type,function(response) {
+			Auth.getProfile=function(user) {
+				var response=[];
+				if (fs.existsSync(PROJECT_WEB+path.sep+".."+path.sep+"auth"+path.sep+'Profiler.json')) {
+					var profiler=JSON.parse(require('fs').readFileSync(PROJECT_WEB+path.sep+".."+path.sep+"auth"+path.sep+'Profiler.json','utf-8'));
+					for (var el in profiler.profile) {
+						var p=profiler.profile[el];
+						if (p.indexOf(user)>-1) response.push(el);
+					};
+				};			
+				return response;
+			};			
+			Auth.login(profile,auth_type,function(response) {
 				cb(response);
 			});
 		};
