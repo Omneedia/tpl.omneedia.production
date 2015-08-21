@@ -5,7 +5,7 @@
  *
  **/
 
-$_VERSION = "0.9.1a";
+$_VERSION = "0.9.1c";
 $_DEBUG = true;
 
 var path=require('path');
@@ -399,65 +399,74 @@ app.get('/favicon.ico',function(req,res) {
 
 function process_api(d,i,batch,res)
 {
-		if (i>=d.length) {
-			var str = JSON.stringify(batch, 'utf8');
-			res.end(str);
-		} else {
-			var api=d[i];
-			
-			try{
-				var name = require.resolve(api.action);
-				delete require.cache[name];
-			}catch(e){
-			};			
+	if (i>=d.length) {
+		var str = JSON.stringify(batch, 'utf8');
+		res.end(str);
+	} else {
+		var api=d[i];			
+		try{
+			var name = require.resolve(api.action);
+			delete require.cache[name];
+		}catch(e){
+		};			
+		if (api.action=="__QUERY__")
+		var x=require(__dirname+path.sep+"node_modules"+path.sep+"db"+path.sep+api.action+".js");
+		else
+		var x=require(__dirname+path.sep+"api"+path.sep+api.action+".js");
+		x.using=function(unit) {
+			if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
+			return require(__dirname+path.sep+'node_modules'+path.sep+unit);
+		};
+		
+		var myfn=x[api.method].toString().split('function')[1].split('{')[0].trim().split('(')[1].split(')')[0].split(',');
+		var response={};
+		response.params=[];
+		for (var j=0;j<myfn.length;j++)
+		{
+			if (myfn[j].trim()!="") response.params[response.params.length]=myfn[j].trim();
+		};
 
-			if (api.action=="__QUERY__")
-			var x=require(__dirname+path.sep+"node_modules"+path.sep+"db"+path.sep+api.action+".js");
-			else
-			var x=require(__dirname+path.sep+"api"+path.sep+api.action+".js");
-			console.log(x);
-			x.using=function(unit) {
-				if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
-				return require(__dirname+path.sep+'node_modules'+path.sep+unit);
-			};						
-			var myfn=x[api.method].toString().split('function')[1].split('{')[0].trim().split('(')[1].split(')')[0].split(',');
-			var response={};
-			response.params=[];
-			for (var j=0;j<myfn.length;j++)
-			{
-				if (myfn[j].trim()!="") response.params[response.params.length]=myfn[j].trim();
-			};
-
-			var p=[];
-			for (var e=0;e<response.params.length-1;e++) {
-				p.push(api.data[e]);
-			};
-			p.push(function(err,response){
-				batch[batch.length]={
+		var p=[];
+		for (var e=0;e<response.params.length-1;e++) {
+			p.push(api.data[e]);
+		};
+		p.push(function(err,response){
+			if (err) {
+				batch.push({
+					action: api.action,
+					method: api.method,
+					result: response,
+					message: err.message,
+					data: err,
+					tid: api.tid,
+					type: "rpc"
+				});
+			} else {
+				err=null;
+				batch.push({
 					action: api.action,
 					method: api.method,
 					result: response,
 					tid: api.tid,
 					type: "rpc"
-				};
-				process_api(d,i+1,batch,res);				
-			});
-			console.log(p);
-			try {
-				x[api.method].apply({},p);
-				console.log('done.');
-			} catch (e) {
-				batch.push({
-					type: 'exception',
-					action: api.action,
-					method: api.method,
-					message: e.message,
-					data: e
-				});		
-				process_api(d,i+1,batch,res);
-			}
+				});
+			};
+			process_api(d,i+1,batch,res);				
+		});
+		try {
+			x[api.method].apply({},p);
+		} catch (e) {
+			batch.push({
+				type: 'exception',
+				action: api.action,
+				method: api.method,
+				message: e.message,
+				data: e
+			});		
+			process_api(d,i+1,batch,res);
 		}
-	};
+	}
+};
 
 function processRoute (req, resp)
 {
