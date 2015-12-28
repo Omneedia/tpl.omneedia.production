@@ -5,7 +5,7 @@
  *
  **/
 
-$_VERSION = "0.9.1c";
+$_VERSION = "0.9.5";
 $_DEBUG = true;
 
 var path=require('path');
@@ -477,7 +477,7 @@ function processRoute (req, resp)
 	}else{
 		d.push(data);
 	};
-	for (var i=0;i<d.length;i++) process_api(d,0,[],resp);
+	process_api(d,0,[],resp);
 };
 
 
