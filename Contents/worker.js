@@ -5,7 +5,7 @@
  *
  **/
 
-$_VERSION = "0.9.5";
+$_VERSION = "0.9.5a";
 $_DEBUG = true;
 
 var path=require('path');
@@ -417,7 +417,7 @@ function process_api(d,i,batch,res)
 			if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
 			return require(__dirname+path.sep+'node_modules'+path.sep+unit);
 		};
-		
+
 		var myfn=x[api.method].toString().split('function')[1].split('{')[0].trim().split('(')[1].split(')')[0].split(',');
 		var response={};
 		response.params=[];
@@ -857,6 +857,7 @@ if (fs.existsSync(PROJECT_SYSTEM+path.sep+"app.js")) {
 						return self._model;
 					}
 		};
+		_App[Manifest.api[i]].DB=require(__dirname+path.sep+'node_modules'+path.sep+"db"+path.sep+"DB.js");
 		_App[Manifest.api[i]].using=function(unit) {
 			if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
 			return require(__dirname+path.sep+'node_modules'+path.sep+unit);
