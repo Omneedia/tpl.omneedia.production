@@ -63,7 +63,8 @@ if (cluster.isMaster) {
 				fork(__dirname+require('path').sep+'worker.js',[
 					reg.cluster,
 					session,
-					reg.uri
+					reg.uri,
+					i
 				]);
 			};			
 		};
