@@ -5,7 +5,7 @@
  *
  **/
 
-$_VERSION = "0.9.5a";
+$_VERSION = "0.9.6";
 $_DEBUG = true;
 
 var path=require('path');
@@ -884,6 +884,43 @@ app.use(session({
         maxAge: 1000 * 60 * 60 * 24
     })
 }));*/
+
+
+/*
+		
+Add Task runner
+		
+*/
+var Tasker=[];
+if (MSettings.jobs) {
+	if (MSettings.jobs.length>0) var schedule = require('node-schedule');
+	
+	for (var i=0;i<MSettings.jobs.length;i++) {
+		console.log('  - Scheduling job#'+i);
+		var newjob=schedule.scheduleJob(MSettings.jobs[i].cron,function(){
+			var ndx=this.name.substr(this.name.lastIndexOf(' ')+1,255).split('>')[0];
+			ndx=ndx*1-1;
+			var _Task = require(PROJECT_HOME+path.sep+'src'+path.sep+'Contents'+path.sep+'Services'+path.sep+MSettings.jobs[ndx].api.split('.')[0]+".js");
+			_Task.DB=require(__dirname+path.sep+'node_modules'+path.sep+"db"+path.sep+"DB.js");
+			_Task.using=function(unit) {
+				if (fs.existsSync(__dirname+path.sep+'node_modules'+path.sep+unit)) 
+				return require(__dirname+path.sep+'node_modules'+path.sep+unit);
+				else {
+					if (fs.existsSync(PROJECT_HOME+path.sep+'bin'+path.sep+'node_modules'+path.sep+unit)) 
+					return require(PROJECT_HOME+path.sep+'bin'+path.sep+'node_modules'+path.sep+unit);
+					else {
+						return require(__dirname+path.sep+unit.replace(/\//g,require('path').sep));
+					}
+				}										
+			};	
+			console.log('  --> Job start.');
+			_Task[MSettings.jobs[ndx].api.split('.')[1]]({},function(){
+				console.log('  --> Job done.');
+			});					
+		});		
+	}
+};
+
 
 
 if (process.argv.length>=3) {
