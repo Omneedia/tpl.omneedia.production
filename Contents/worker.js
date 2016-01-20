@@ -540,11 +540,11 @@ try {
 			secret: 'omneedia_rulez',
 			saveUninitialized: true,
 			resave: true,
-			cookie: {
+			/*cookie: {
 				path: '/',
 				domain: '.applications.cete-mediterranee.i2',
 				maxAge: 1000 * 60 * 24 // 24 hours
-			},
+			},*/
 			store: new sessionstore({
 				host: zhost,
 				port: zport,
