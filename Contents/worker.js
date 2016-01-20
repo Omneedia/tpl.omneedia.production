@@ -542,7 +542,7 @@ try {
 			resave: true,
 			cookie: {
 				path: '/',
-				domain: 'applications.cete-mediterranee.i2',
+				domain: '.applications.cete-mediterranee.i2',
 				maxAge: 1000 * 60 * 24 // 24 hours
 			},
 			store: new sessionstore({
