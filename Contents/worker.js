@@ -618,6 +618,15 @@ if (MSettings.auth) {
 			req.session.udid=req.body.udid;
 		};	
 		if (!req.user) req.user=req.session.user;
+		var response=[];
+		if (fs.existsSync(PROJECT_WEB+path.sep+".."+path.sep+"auth"+path.sep+'Profiler.json')) {
+			var profiler=JSON.parse(require('fs').readFileSync(PROJECT_WEB+path.sep+".."+path.sep+"auth"+path.sep+'Profiler.json','utf-8'));
+			for (var el in profiler.profile) {
+				var p=profiler.profile[el];
+				if (p.indexOf(req.user.mail.split('@')[0])>-1) response.push(el);
+			};
+		};			
+		req.user.profiles=response;		
 		res.end(JSON.stringify(req.user,null,4));
 	});  
 	app.get('/account', ensureAuthenticated, function(req, res){
@@ -971,5 +980,3 @@ Standalone
 	app.listen(port);
 
 }
-
-
