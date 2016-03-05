@@ -469,13 +469,51 @@ Auth = {
 	}
 };
 
+Date.prototype.format = function(format) //author: meizz
+{
+  var o = {
+    "M+" : this.getMonth()+1, //month
+    "d+" : this.getDate(),    //day
+    "h+" : this.getHours(),   //hour
+    "m+" : this.getMinutes(), //minute
+    "s+" : this.getSeconds(), //second
+    "q+" : Math.floor((this.getMonth()+3)/3),  //quarter
+    "S" : this.getMilliseconds() //millisecond
+  }
+
+  if(/(y+)/.test(format)) format=format.replace(RegExp.$1,
+    (this.getFullYear()+"").substr(4 - RegExp.$1.length));
+  for(var k in o)if(new RegExp("("+ k +")").test(format))
+    format = format.replace(RegExp.$1,
+      RegExp.$1.length==1 ? o[k] :
+        ("00"+ o[k]).substr((""+ o[k]).length));
+  return format;
+};
+
 var app = express();
 
+// initialize socket.io
+var http = require('http').createServer(app);
+app.IO = require('socket.io').listen(http);
+
 // Sessions
+var redis = require('socket.io-redis');
+
+if (process.argv[2]) app.IO.adapter(redis(process.argv[2].split(':')[0]));
 
 app.use(require('cookie-parser')());
 
 var session_connect=false;
+
+app.IO.on('connection', function (socket) {
+    var response = {
+        omneedia : {
+            engine: $_VERSION
+        },
+        session: _SESSION_
+    };		
+    socket.emit('session', JSON.stringify(response));
+});
 
 app.use(express.static(__dirname+path.sep+"www"));
 
@@ -1143,7 +1181,7 @@ Mise en cluster
 		var wrench=require('wrench');
 		wrench.mkdirSyncRecursive(__dirname+path.sep+".."+path.sep+".."+path.sep+"var"+path.sep+"pids"+path.sep+NS, 0777);
 		console.log("  Worker thread "+NS+"\n  started at "+getIPAddress()+":"+port+" - pid: "+process.pid+"\n");	
-		app.listen(port);
+		http.listen(port);
 		fs.writeFileSync(__dirname+path.sep+".."+path.sep+".."+path.sep+"var"+path.sep+"pids"+path.sep+NS+path.sep+process.pid+".pid",port);
 		
 		// update cluster
