@@ -529,10 +529,10 @@ app.use(require('body-parser').json({
 	limit: "5000mb"
 }));
 
-var multer=require('multer');
+/*var multer=require('multer');
 if (!fs.existsSync(__dirname+require('path').sep+'uploads')) fs.mkdirSync(__dirname+require('path').sep+'uploads');
-app.use(multer({ dest: __dirname+require('path').sep+'uploads'}))
-
+app.use(multer({ dest: __dirname+require('path').sep+'uploads'}).array)
+*/
 app.use(allowCrossDomain);
 
 var exit = function exit() {
@@ -735,9 +735,25 @@ try {
 	};
 	
 	// check session server settings from cluster
-	
+	if (reg_session.indexOf('mongodb://')>-1) {    
+        var MongoStore = require('connect-mongo')(session);
+        app.use(session({
+			key: 'omneedia', 
+			secret: 'omneedia_rulez',
+			saveUninitialized: true,
+			resave: true,
+			cookie: {
+				path: '/',
+				domain: '.applications.omneedia.com',
+				maxAge: 1000 * 60 * 24 // 24 hours
+			},
+            store: new MongoStore({
+                url: reg_session
+            })
+        }));        
+    };
 	if (reg_session.indexOf('mysql://')>-1) {
-		var sessionstore = require('express-mysql-session');
+		var MySQLStore = require('express-mysql-session')(session);
 		var zhost=reg_session.split('@')[1].split('/')[0];
 		var zusers=reg_session.split('://')[1].split('@')[0];
 		var zuser="";
@@ -752,7 +768,16 @@ try {
 
 		zuser=zusers.split(':')[0];
 		zpass=zusers.split(':')[1];
-
+        
+        var sessionStore = new MySQLStore({
+				host: zhost,
+				port: zport,
+				user: zuser,
+				password: zpass,
+				database: "sessions",
+                createDatabaseTable: true
+        });
+        
 		app.use(session({
 			key: 'omneedia', 
 			secret: 'omneedia_rulez',
@@ -760,16 +785,10 @@ try {
 			resave: true,
 			cookie: {
 				path: '/',
-				domain: '.applications.cete-mediterranee.i2',
+				domain: '.applications.omneedia.com',
 				maxAge: 1000 * 60 * 24 // 24 hours
 			},
-			store: new sessionstore({
-				host: zhost,
-				port: zport,
-				user: zuser,
-				password: zpass,
-				database: db
-			})
+			store: sessionStore
 		}));
 		
 	};
