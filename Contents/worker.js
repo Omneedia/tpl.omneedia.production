@@ -8,7 +8,6 @@
 $_VERSION = "0.9.7";
 $_DEBUG = true;
 
-var Cluster = require('cluster2');
 var path = require('path');
 var os = require('os');
 var fs = require('fs');
@@ -16,10 +15,11 @@ var cluster = require('cluster');
 var express = require("express");
 var os_util = require("os-utils");
 var request = require("request");
-var Clients={
-	mail: {},
-	uid: {}
-};
+
+var registry=JSON.parse(require('fs').readFileSync(__dirname+require('path').sep+'..'+require('path').sep+'registry.json'));
+var point=registry.uri.indexOf('.');
+registry.url=registry.uri;
+registry.uri=registry.uri.substr(point,255);
 
 if (!$_DEBUG) console.log = function () {};
 
@@ -1878,12 +1878,12 @@ var app = express();
 var http = require('http').createServer(app);
 app.IO = require('socket.io').listen(http);
 
-// Sessions
+app.use(require('cookie-parser')());
+
+// Socket Sessions
 var redis = require('socket.io-redis');
 
-if (process.argv[3]) app.IO.adapter(redis(process.argv[2].split(':')[0]));
-
-app.use(require('cookie-parser')());
+if (process.argv[3]) app.IO.adapter(redis({ host: 'localhost', port: 6379 }));
 
 var session_connect = false;
 
@@ -1908,7 +1908,7 @@ app.IO.on('connection', function (socket) {
 	});
 	socket.on('#send', function (o) {
 		o=JSON.parse(o);
-		console.log(o);
+		console.log(Clients);
 		if (!o.users) {
 			// on envoie qu'à la session en cours
 			app.IO.sockets.to(socket.id).emit(o.uri,o.data);
@@ -2071,7 +2071,7 @@ function process_api(d, i, batch, res) {
 					data: data,
 					users: users
 				};
-				var socket = require('socket.io-client')('http://' + getIPAddress() + ':' + Manifest.server.port);
+				var socket = require('socket.io-client')('http://'+registry.uri);
 				if (uri.indexOf("#")>-1) socket.emit("#send",JSON.stringify(o));
 			}					
 		};
@@ -2150,7 +2150,7 @@ try {
     var cluster_port = process.argv[2].split(':')[1];
     var reg_session = process.argv[3];
 
-    const session = require('express-session');
+    var session = require('express-session');
 
     function cluster_post(cluster_host, cluster_port, obj) {
 
@@ -2174,7 +2174,11 @@ try {
 
     };
 
-
+	var registry=JSON.parse(require('fs').readFileSync(__dirname+require('path').sep+'..'+require('path').sep+'registry.json'));
+	var point=registry.uri.indexOf('.');
+	var zuri=registry.uri.substr(point,255);
+	console.log(zuri);
+	
     // check session server settings from cluster
     if (reg_session.indexOf('mongodb://') > -1) {
         var MongoStore = require('connect-mongo')(session);
@@ -2185,7 +2189,7 @@ try {
             , resave: true
             , cookie: {
                 path: '/'
-                , domain: '.applications.omneedia.com'
+                , domain: zuri
                 , maxAge: 1000 * 60 * 24 // 24 hours
             }
             , store: new MongoStore({
@@ -2218,11 +2222,7 @@ try {
             , database: "sessions"
             , createDatabaseTable: true
         });
-		
-		var registry=JSON.parse(require('fs').readFileSync(__dirname+require('path').sep+'..'+require('path').sep+'registry.json'));
-		var point=registry.indexOf('.');
-		registry.uri=registry.substr(point,255);
-		
+			
         app.use(session({
             key: 'omneedia'
             , secret: 'omneedia_rulez'
@@ -2230,7 +2230,7 @@ try {
             , resave: true
             , cookie: {
                 path: '/'
-                , domain: registry.uri
+                , domain: zuri
                 , maxAge: 1000 * 60 * 24 // 24 hours
             }
             , store: sessionStore
@@ -2382,7 +2382,7 @@ if (MSettings.auth) {
             profile.provider = "cas";
             profile.username = data.username;
             Auth.user(profile, function (err, response) {
-                console.log(response);
+                console.log(req.session);
                 req.session.user = response;
                 res.setHeader('content-type', 'text/html');
                 res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");
@@ -2540,7 +2540,7 @@ if (fs.existsSync(PROJECT_SYSTEM + path.sep + "app.js")) {
 				data: data,
 				users: users
 			};
-			var socket = require('socket.io-client')('http://' + getIPAddress() + ':' + Manifest.server.port);
+			var socket = require('socket.io-client')('http://'+registry.uri);
 			if (uri.indexOf("#")>-1) socket.emit("#send",JSON.stringify(o));
 		}              
 	};	
@@ -2608,7 +2608,17 @@ if (fs.existsSync(PROJECT_SYSTEM + path.sep + "app.js")) {
             }
         };
         _App[Manifest.api[i]].DB = require(__dirname + path.sep + 'node_modules' + path.sep + "db" + path.sep + "DB.js");
-		_App[Manifest.api[i]].IO = app.IO;		
+		_App[Manifest.api[i]].IO = {
+			send: function(uri,data,users) {
+				var o={
+					uri: uri,
+					data: data,
+					users: users
+				};
+				var socket = require('socket.io-client')(registry.url);
+				if (uri.indexOf("#")>-1) socket.emit("#send",JSON.stringify(o));
+			}					
+		};		
         _App[Manifest.api[i]].using = function (unit) {
             if (fs.existsSync(__dirname + path.sep + 'node_modules' + path.sep + unit))
                 return require(__dirname + path.sep + 'node_modules' + path.sep + unit);
@@ -2660,7 +2670,7 @@ if (process.argv.length >= 3) {
         var wrench = require('wrench');
         wrench.mkdirSyncRecursive(__dirname + path.sep + ".." + path.sep + ".." + path.sep + "var" + path.sep + "pids" + path.sep + NS, 0777);
         console.log("  Worker thread " + NS + "\n  started at " + getIPAddress() + ":" + port + " - pid: " + process.pid + "\n");
-        authom.listen(http);
+        authom.listen(app);
         http.listen(port);
         fs.writeFileSync(__dirname + path.sep + ".." + path.sep + ".." + path.sep + "var" + path.sep + "pids" + path.sep + NS + path.sep + process.pid + ".pid", port);
 
