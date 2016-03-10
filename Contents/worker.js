@@ -8,6 +8,7 @@
 $_VERSION = "0.9.7";
 $_DEBUG = true;
 
+var Cluster = require('cluster2');
 var path = require('path');
 var os = require('os');
 var fs = require('fs');
@@ -15,8 +16,17 @@ var cluster = require('cluster');
 var express = require("express");
 var os_util = require("os-utils");
 var request = require("request");
+var Clients={
+	mail: {},
+	uid: {}
+};
 
 if (!$_DEBUG) console.log = function () {};
+
+var Clients={
+    uid: {},
+    mail: {}
+};
 
 // get app.manifest
 var json = fs.readFileSync(__dirname + path.sep + "app.manifest");
@@ -1878,13 +1888,56 @@ app.use(require('cookie-parser')());
 var session_connect = false;
 
 app.IO.on('connection', function (socket) {
-    var response = {
-        omneedia: {
-            engine: $_VERSION
-        }
-        , session: _SESSION_
-    };
-    socket.emit('session', JSON.stringify(response));
+	var response = {
+		omneedia: {
+			engine: $_VERSION
+		}
+		, session: socket.id
+	}; 
+	OASocketonAuth=function(response) {
+		var r=JSON.parse(response);
+		if (!Clients.uid[r.uid]) Clients.uid[r.uid]=[];
+		if (!Clients.mail[r.mail]) Clients.mail[r.mail]=[];
+		if (Clients.uid[r.uid].indexOf(socket.id)==-1) Clients.uid[r.uid].push(socket.id);
+		if (Clients.mail[r.mail].indexOf(socket.id)==-1) Clients.mail[r.mail].push(socket.id);
+		app.IO.sockets.to(socket.id).emit("#auth",response);
+	};
+	socket.on('#create', function (room) {
+		console.log("- "+room+" joined.");
+		socket.join(room);				
+	});
+	socket.on('#send', function (o) {
+		o=JSON.parse(o);
+		console.log(o);
+		if (!o.users) {
+			// on envoie qu'à la session en cours
+			app.IO.sockets.to(socket.id).emit(o.uri,o.data);
+		} else {
+			if( Object.prototype.toString.call( o.users ) === '[object Array]' ) {
+				// on envoie qu'aux sockets des élus
+				for (var i=0;i<o.users.length;i++) {
+					var _id=o.users[i];
+					if (Clients.uid[_id]) {
+						var tab=Clients.uid[_id];
+						for (var j=0;j<tab.length;j++) {
+							app.IO.sockets.to(tab[j]).emit(o.uri,o.data);
+						}
+					};
+					if (Clients.mail[_id]) {
+						var tab=Clients.mail[_id];
+						for (var j=0;j<tab.length;j++) app.IO.sockets.to(tab[j]).emit(o.uri,o.data);
+					};
+				};
+			} else {
+				if (o.users=="*") {
+					// on broadcast à tout le monde connecté à l'application
+					app.IO.sockets.emit(o.uri,o.data);
+				}
+			}
+		};
+	});
+
+	socket.emit('session', JSON.stringify(response));
 });
 
 app.use(express.static(__dirname + path.sep + "www"));
@@ -2011,6 +2064,17 @@ function process_api(d, i, batch, res) {
                 , url: "/tmp/" + filename
             };
         };
+		x.IO={
+			send: function(uri,data,users) {
+				var o={
+					uri: uri,
+					data: data,
+					users: users
+				};
+				var socket = require('socket.io-client')('http://' + getIPAddress() + ':' + Manifest.server.port);
+				if (uri.indexOf("#")>-1) socket.emit("#send",JSON.stringify(o));
+			}					
+		};
 
         var myfn = x[api.method].toString().split('function')[1].split('{')[0].trim().split('(')[1].split(')')[0].split(',');
         var response = {};
@@ -2465,6 +2529,17 @@ if (fs.existsSync(PROJECT_SYSTEM + path.sep + "app.js")) {
         }
         , dir: __dirname + require('path').sep + 'uploads'
     };
+	_App.IO = {
+		send: function(uri,data,users) {
+			var o={
+				uri: uri,
+				data: data,
+				users: users
+			};
+			var socket = require('socket.io-client')('http://' + getIPAddress() + ':' + Manifest.server.port);
+			if (uri.indexOf("#")>-1) socket.emit("#send",JSON.stringify(o));
+		}              
+	};	
     _App.using = function (unit) {
         if (fs.existsSync(__dirname + path.sep + 'node_modules' + path.sep + unit))
             return require(__dirname + path.sep + 'node_modules' + path.sep + unit);
@@ -2529,6 +2604,7 @@ if (fs.existsSync(PROJECT_SYSTEM + path.sep + "app.js")) {
             }
         };
         _App[Manifest.api[i]].DB = require(__dirname + path.sep + 'node_modules' + path.sep + "db" + path.sep + "DB.js");
+		_App[Manifest.api[i]].IO = app.IO;		
         _App[Manifest.api[i]].using = function (unit) {
             if (fs.existsSync(__dirname + path.sep + 'node_modules' + path.sep + unit))
                 return require(__dirname + path.sep + 'node_modules' + path.sep + unit);
@@ -2536,26 +2612,6 @@ if (fs.existsSync(PROJECT_SYSTEM + path.sep + "app.js")) {
     };
     _App.init(app, express);
 };
-
-
-
-/*
-app.use(session({
-	key: 'omneedia', 
-	secret: 'omneedia_rulez',
-	saveUninitialized: true,
-	resave: true,
-	store: sessionstore.createSessionStore({
-        type: 'mongodb',
-        host: 'localhost',
-        port: 27017,
-        dbName: 'sessionDb',
-        collectionName: 'sessions',
-        reapInterval: 600000,
-        maxAge: 1000 * 60 * 60 * 24
-    })
-}));*/
-
 
 /*
 		
