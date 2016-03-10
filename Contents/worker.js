@@ -2218,7 +2218,11 @@ try {
             , database: "sessions"
             , createDatabaseTable: true
         });
-
+		
+		var registry=JSON.parse(require('fs').readFileSync(__dirname+require('path').sep+'..'+require('path').sep+'registry.json'));
+		var point=registry.indexOf('.');
+		registry.uri=registry.substr(point,255);
+		
         app.use(session({
             key: 'omneedia'
             , secret: 'omneedia_rulez'
@@ -2226,7 +2230,7 @@ try {
             , resave: true
             , cookie: {
                 path: '/'
-                , domain: '.applications.omneedia.com'
+                , domain: registry.uri
                 , maxAge: 1000 * 60 * 24 // 24 hours
             }
             , store: sessionStore
