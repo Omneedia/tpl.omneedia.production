@@ -2706,7 +2706,7 @@ if (cluster.isMaster) {
     if (registry.cluster.split(':').length > 1) var cluster_port = registry.cluster.split(':')[1];
     else var cluster_port = 80;
 
-    authom.listen(http);
+    authom.listen(app);
 
     /*
      */
