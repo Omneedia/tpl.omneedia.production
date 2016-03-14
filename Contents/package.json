@@ -23,8 +23,10 @@
         "node-schedule": "",
         "socket.io": "",
         "socket.io-client": "",
-        "socket.io-redis": "",
-        "connect-mongo": ""
+        "connect-mongo": "",
+        "gridfs-storage-engine": "",
+        "socket.io-adapter-mongo": "",
+        "shelljs": ""
     },
     "devDependencies": {},
     "scripts": {
