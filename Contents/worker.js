@@ -1,11 +1,11 @@
 /**
  *
  *	Omneedia Worker Foundation
- *	v 0.9.7
+ *	v 0.9.7a
  *
  **/
 
-$_VERSION = "0.9.7";
+$_VERSION = "0.9.7a";
 $_DEBUG = true;
 
 var Clients={
@@ -2546,34 +2546,38 @@ if (cluster.isMaster) {
             return fs.realpathSync(PROJECT_WEB + path.sep + ".." + path.sep + "var" + path.sep + "tmp") + path.sep + filename;
         };
         _App.upload = {
-            up: function (req, res, cb) {
-                for (var el in req.files) {};
-                if (el) {
-                    var stat = require('fs').statSync(__dirname + require('path').sep + 'uploads' + require('path').sep + req.files[el].name);
-                    var size = stat.size;
-                    var o = {
-                        message: req.files[el].name + "|" + req.files[el].fieldname + "|" + _EXT_.getContentType(req.files[el].name) + '|' + size
-                        , test: "OK"
-                        , success: true
-                    };
-                } else var o = {
-                    message: "FATAL_ERROR"
-                    , test: "OK"
-                    , success: false
-                };
-                if (cb) {
-                    cb(req.files[el].name);
-                };
-                res.end(JSON.stringify(o));
-            }
-            , toBase64: function (filename) {
+                    up: function (req,cb) {
+                        for (var el=0;el<req.files.length;el++) {
+                            var stat = require('fs').statSync(req.files[el].path);
+                            var size = stat.size;
+                            var o = {
+                                message: req.files[el].path + "|" + req.files[el].fieldname + "|" + _EXT_.getContentType(req.files[el].path) + '|' + size
+                                , test: "OK"
+                                , success: true
+                            };
+                            if (cb) {
+                                if (typeof(cb) == 'function') cb(o); else cb.end(JSON.stringify(o));
+                            }
+                        };
+                        if (req.files.length==0) {
+                            if (cb) {
+                                var o={
+                                    message: "NOT_FOUND"
+                                    , test: "OK"
+                                    , success: false
+                                };
+                                if (typeof(cb) == 'function') cb(o); else cb.end(JSON.stringify(o));
+                            }
+                        }
+                    }
+					, toBase64: function (filename) {
                 if (!filename) return "";
                 var path = __dirname + require('path').sep + 'uploads' + require('path').sep + filename;
                 var bin = fs.readFileSync(path);
                 var base64Image = new Buffer(bin, 'binary').toString('base64');
                 return "data:" + _EXT_.getContentType(path) + ";base64," + base64Image;
             }
-            , dir: __dirname + require('path').sep + 'uploads'
+            , dir: ""
         };
         _App.IO = {
             send: function (uri, data, users) {
