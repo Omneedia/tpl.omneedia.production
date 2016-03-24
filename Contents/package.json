@@ -24,7 +24,7 @@
         "socket.io": "",
         "socket.io-client": "",
         "connect-mongo": "",
-        "gridfs-storage-engine": "",
+        "gridfs-storage-engine": "https://github.com/Omneedia/gridfs-storage-engine",
         "socket.io-adapter-mongo": "",
         "shelljs": ""
     },
