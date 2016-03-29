@@ -1,11 +1,13 @@
 /**
  *
  *	Omneedia Worker Foundation
- *	v 0.9.7a
+ *	v 0.9.7b
+ *
+ * 	29/03/2016	Changed MongoDB to REDIS for socket.io		v 0.9.7b
  *
  **/
 
-$_VERSION = "0.9.7a";
+$_VERSION = "0.9.7b";
 $_DEBUG = true;
 
 var Clients={
@@ -2000,12 +2002,15 @@ if (cluster.isMaster) {
     app.use(require('cookie-parser')());
 
     // Socket Sessions use mongodb
-    var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017/sio';
+    /*var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017/sio';
     var mongo = require('socket.io-adapter-mongo');
     app.IO.adapter(mongo({
         uri: reg_session
-    }));
-
+    }));*/
+	
+	var redis=require('socket.io-redis');
+	app.IO.adapter(redis(registry.cluster.split(':')[0]));
+	
     app.IO.on('connection', function (socket) {
         console.log('connection...');
         var response = {

@@ -18,15 +18,17 @@
         "xcas": "",
         "express-session": "",
         "http-proxy": "",
-        "express-mysql-session": "",
         "multer": "",
         "node-schedule": "",
         "socket.io": "",
         "socket.io-client": "",
         "connect-mongo": "",
         "gridfs-storage-engine": "https://github.com/Omneedia/gridfs-storage-engine",
-        "socket.io-adapter-mongo": "",
-        "shelljs": ""
+        "shelljs": "",
+		"socket.io-redis": "",
+		"db": "https://github.com/Omneedia/db/tarball/master",
+		"api": "https://github.com/Omneedia/api/tarball/master",
+		"authom": "https://github.com/Omneedia/authom.git"
     },
     "devDependencies": {},
     "scripts": {
