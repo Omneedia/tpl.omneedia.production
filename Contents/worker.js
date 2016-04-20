@@ -2150,6 +2150,50 @@ if (cluster.isMaster) {
                 if (fs.existsSync(__dirname + path.sep + 'node_modules' + path.sep + unit))
                     return require(__dirname + path.sep + 'node_modules' + path.sep + unit);
             };
+			x.getFile = function(filename,cb) {
+                Math.uuid = function () {
+                    var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+                    var chars = CHARS
+                        , uuid = new Array(36)
+                        , rnd = 0
+                        , r;
+                    for (var i = 0; i < 36; i++) {
+                        if (i == 8 || i == 13 || i == 18 || i == 23) {
+                            uuid[i] = '-';
+                        } else if (i == 14) {
+                            uuid[i] = '4';
+                        } else {
+                            if (rnd <= 0x02) rnd = 0x2000000 + (Math.random() * 0x1000000) | 0;
+                            r = rnd & 0xf;
+                            rnd = rnd >> 4;
+                            uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+                        }
+                    }
+                    return uuid.join('');
+                };
+                var uid = Math.uuid();			
+				if (fs.existsSync(filename)) cb(filename); else {
+					var mongoose = require('mongoose');  
+					var Grid = require('gridfs-stream');
+					Grid.mongo = mongoose.mongo;
+					var conn = mongoose.createConnection(reg_session + '/upload');
+					conn.once('open', function () {
+						var gfs = Grid(conn.db);
+						var readstream = gfs.createReadStream({
+							_id: filename
+						});
+						readstream.on('error', function (err) {
+							cb(err,null);
+						});
+						var tmpfile="/tmp/"+uid;
+						var filetmp=fs.createWriteStream(tmpfile);
+						readstream.pipe(filetmp);
+						readstream.on('end',function() {
+							cb(tmpfile);
+						});
+					});										
+				}
+			};
             x.temp = function (ext) {
                 Math.uuid = function () {
                     var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
@@ -2553,10 +2597,9 @@ if (cluster.isMaster) {
         _App.upload = {
                     up: function (req,cb) {
                         for (var el=0;el<req.files.length;el++) {
-                            var stat = require('fs').statSync(req.files[el].path);
-                            var size = stat.size;
+                            var size = req.files[el].gridfsEntry.length;
                             var o = {
-                                message: req.files[el].path + "|" + req.files[el].fieldname + "|" + _EXT_.getContentType(req.files[el].path) + '|' + size
+                                message: req.files[el].gridfsEntry._id + "|" + req.files[el].gridfsEntry.filename + "|" + req.files[el].gridfsEntry.contentType + '|' + size
                                 , test: "OK"
                                 , success: true
                             };
@@ -2576,13 +2619,13 @@ if (cluster.isMaster) {
                         }
                     }
 					, toBase64: function (filename) {
-                if (!filename) return "";
-                var path = __dirname + require('path').sep + 'uploads' + require('path').sep + filename;
-                var bin = fs.readFileSync(path);
-                var base64Image = new Buffer(bin, 'binary').toString('base64');
-                return "data:" + _EXT_.getContentType(path) + ";base64," + base64Image;
-            }
-            , dir: ""
+						if (!filename) return "";
+						var path = __dirname + require('path').sep + 'uploads' + require('path').sep + filename;
+						var bin = fs.readFileSync(path);
+						var base64Image = new Buffer(bin, 'binary').toString('base64');
+						return "data:" + _EXT_.getContentType(path) + ";base64," + base64Image;
+					}
+					, dir: ""
         };
         _App.IO = {
             send: function (uri, data, users) {

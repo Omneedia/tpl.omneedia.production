@@ -22,6 +22,8 @@
         "node-schedule": "",
         "socket.io": "",
         "socket.io-client": "",
+		"mongoose": "",
+		"gridfs-stream": "",
         "connect-mongo": "",
         "gridfs-storage-engine": "https://github.com/Omneedia/gridfs-storage-engine",
         "shelljs": "",
