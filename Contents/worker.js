@@ -1,13 +1,13 @@
 /**
  *
  *	Omneedia Worker Foundation
- *	v 0.9.7b
+ *	v 0.9.8a
  *
  * 	29/03/2016	Changed MongoDB to REDIS for socket.io		v 0.9.7b
  *
  **/
 
-$_VERSION = "0.9.7b";
+$_VERSION = "0.9.8a";
 $_DEBUG = true;
 
 var Clients={
@@ -2595,6 +2595,19 @@ if (cluster.isMaster) {
             return fs.realpathSync(PROJECT_WEB + path.sep + ".." + path.sep + "var" + path.sep + "tmp") + path.sep + filename;
         };
         _App.upload = {
+					reader: function (filename, cb) {
+                        if (!filename) cb("NOT_FOUND", null);
+                        else {
+							var mongoose = require('mongoose');  
+							var Grid = require('gridfs');
+							Grid.mongo = mongoose.mongo;
+							var conn = mongoose.createConnection(reg_session + '/upload');
+							conn.once('open', function () {
+								var gfs = Grid(conn.db);
+								gfs.readFile({_id: filename},cb);
+							});
+						}
+                    },
                     up: function (req,cb) {
                         for (var el=0;el<req.files.length;el++) {
                             var size = req.files[el].gridfsEntry.length;
