@@ -18,6 +18,7 @@
         "xcas": "",
         "express-session": "",
         "http-proxy": "",
+        "gridfs": "",
         "multer": "",
         "node-schedule": "",
         "socket.io": "",
