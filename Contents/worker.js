@@ -7,7 +7,7 @@
  *
  **/
 
-$_VERSION = "0.9.8a";
+$_VERSION = "0.9.8c";
 $_DEBUG = true;
 
 var Clients={
@@ -48,6 +48,11 @@ function testPort(port, host, pid, cb) {
         cb("failure", pid, e);
     });
 };
+
+function isFunction(functionToCheck) {
+	var getType = {};
+	return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
+};	
 
 function getIPAddress() {
     var interfaces = require('os').networkInterfaces();
@@ -2589,13 +2594,76 @@ if (cluster.isMaster) {
         _App.tmpdir = function (filename) {
             return fs.realpathSync(PROJECT_WEB + path.sep + ".." + path.sep + "var" + path.sep + "tmp");
         };
-        _App.tmp = function (filename) {
-            if (!fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "var" + path.sep + "tmp"))
-                glob.mkdirSyncRecursive(PROJECT_WEB + path.sep + ".." + path.sep + "var" + path.sep + "tmp");
-            return fs.realpathSync(PROJECT_WEB + path.sep + ".." + path.sep + "var" + path.sep + "tmp") + path.sep + filename;
-        };
+		_App.file={
+			reader: function(ff,cb) {
+				if (!ff.docId) cb("MISMATCHED_OBJECT", null);
+				else {
+					if (ff._blob) {
+						if (ff._blob.indexOf(';base64')>-1) {
+							var buf = new Buffer(ff._blob.split(';base64,')[1], 'base64');
+							if (isFunction(cb)) {
+								cb(null,buf);
+							} else {
+								if (res.set) {
+									res.set('Content-disposition', 'inline; filename="'+ff[0].filename+'"');
+									res.set("Content-Type", ff[0].type);
+									res.set("Content-Length", ff[0].size);
+									res.end(buf);
+								} else cb("MISMATCHED_CALLBACK_PROVIDED",null);
+							};
+						} else cb("MISMATCHED_OBJECT", null);
+					} else cb("MISMATCHED_OBJECT", null);
+				}
+			}
+		};
+		
         _App.upload = {
 					reader: function (filename, cb) {
+					
+						if (!filename) {
+							if (cb.end) cb.end("NOT_FOUND"); else cb("NOT_FOUND", null);
+                        } else {
+						
+							var mongoose = require('mongoose');  
+							var Grid = require('gridfs');
+							Grid.mongo = mongoose.mongo;
+							var conn = mongoose.createConnection(reg_session + '/upload');
+							conn.once('open', function () {
+								var gfs = Grid(conn.db);
+								if (cb.end) {
+									gfs.readFile({_id: filename},function(e,buf){
+										/*cb.set('Content-disposition', 'inline; filename="'+require('path').basename(path)+'"');
+										cb.set("Content-Type", _EXT_.getContentType(path));
+										cb.set("Content-Length", stats.size);									*/
+										cb.end(buf);
+									});
+								} else gfs.readFile({_id: filename},cb);
+							});						
+						
+						
+                            var path = filename;
+                            if (fs.existsSync(path)) {
+								if (isFunction(cb)) fs.readFile(path, cb); else {
+									if (!cb.end) {cb("MISMATCHED_OBJECT",null); return;}
+									fs.stat(path, function(err, stats) {
+										if (err) cb(err,null); else {
+											cb.set('Content-disposition', 'inline; filename="'+require('path').basename(path)+'"');
+											cb.set("Content-Type", _EXT_.getContentType(path));
+											cb.set("Content-Length", stats.size);
+											fs.readFile(path,function(err,buf) {
+												if (err) cb.end(''); else cb.end(buf);
+											});	
+										};
+									});									
+								};
+                            } else {
+								if (cb.end) cb.end("NOT_FOUND"); else cb("NOT_FOUND", null);
+							}
+                        };					
+					
+					
+					
+					
                         if (!filename) cb("NOT_FOUND", null);
                         else {
 							var mongoose = require('mongoose');  
@@ -2631,12 +2699,19 @@ if (cluster.isMaster) {
                             }
                         }
                     }
-					, toBase64: function (filename) {
-						if (!filename) return "";
-						var path = __dirname + require('path').sep + 'uploads' + require('path').sep + filename;
-						var bin = fs.readFileSync(path);
-						var base64Image = new Buffer(bin, 'binary').toString('base64');
-						return "data:" + _EXT_.getContentType(path) + ";base64," + base64Image;
+					, toBase64: function (filename,cb) {
+						if (!filename) cb("NOT_FOUND",null); else {
+							var mongoose = require('mongoose');  
+							var Grid = require('gridfs');
+							Grid.mongo = mongoose.mongo;
+							var conn = mongoose.createConnection(reg_session + '/upload');
+							conn.once('open', function () {
+								var gfs = Grid(conn.db);
+								gfs.readFile({_id: filename},function(err,buf){
+									cb(err,"data:" + _EXT_.getContentType(path) + ";base64," + buf.toString('base64'));
+								});
+							});
+						};
 					}
 					, dir: ""
         };
