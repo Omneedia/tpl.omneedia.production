@@ -2604,11 +2604,11 @@ if (cluster.isMaster) {
 							if (isFunction(cb)) {
 								cb(null,buf);
 							} else {
-								if (res.set) {
-									res.set('Content-disposition', 'inline; filename="'+ff[0].filename+'"');
-									res.set("Content-Type", ff[0].type);
-									res.set("Content-Length", ff[0].size);
-									res.end(buf);
+								if (cb.set) {
+									cb.set('Content-disposition', 'inline; filename="'+ff.filename+'"');
+									cb.set("Content-Type", ff.type);
+									cb.set("Content-Length", ff.size);
+									cb.end(buf);
 								} else cb("MISMATCHED_CALLBACK_PROVIDED",null);
 							};
 						} else cb("MISMATCHED_OBJECT", null);
@@ -2619,18 +2619,21 @@ if (cluster.isMaster) {
 		
         _App.upload = {
 					reader: function (filename, cb) {
-					
+						console.log(filename);
 						if (!filename) {
 							if (cb.end) cb.end("NOT_FOUND"); else cb("NOT_FOUND", null);
                         } else {
-						
+							
 							var mongoose = require('mongoose');  
 							var Grid = require('gridfs');
 							Grid.mongo = mongoose.mongo;
 							var conn = mongoose.createConnection(reg_session + '/upload');
+							console.log(reg_session + '/upload');
 							conn.once('open', function () {
+							
 								var gfs = Grid(conn.db);
 								if (cb.end) {
+									console.log('--------------------++++++++++++');
 									gfs.readFile({_id: filename},function(e,buf){
 										/*cb.set('Content-disposition', 'inline; filename="'+require('path').basename(path)+'"');
 										cb.set("Content-Type", _EXT_.getContentType(path));
@@ -2640,40 +2643,6 @@ if (cluster.isMaster) {
 								} else gfs.readFile({_id: filename},cb);
 							});						
 						
-						
-                            var path = filename;
-                            if (fs.existsSync(path)) {
-								if (isFunction(cb)) fs.readFile(path, cb); else {
-									if (!cb.end) {cb("MISMATCHED_OBJECT",null); return;}
-									fs.stat(path, function(err, stats) {
-										if (err) cb(err,null); else {
-											cb.set('Content-disposition', 'inline; filename="'+require('path').basename(path)+'"');
-											cb.set("Content-Type", _EXT_.getContentType(path));
-											cb.set("Content-Length", stats.size);
-											fs.readFile(path,function(err,buf) {
-												if (err) cb.end(''); else cb.end(buf);
-											});	
-										};
-									});									
-								};
-                            } else {
-								if (cb.end) cb.end("NOT_FOUND"); else cb("NOT_FOUND", null);
-							}
-                        };					
-					
-					
-					
-					
-                        if (!filename) cb("NOT_FOUND", null);
-                        else {
-							var mongoose = require('mongoose');  
-							var Grid = require('gridfs');
-							Grid.mongo = mongoose.mongo;
-							var conn = mongoose.createConnection(reg_session + '/upload');
-							conn.once('open', function () {
-								var gfs = Grid(conn.db);
-								gfs.readFile({_id: filename},cb);
-							});
 						}
                     },
                     up: function (req,cb) {
