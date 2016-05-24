@@ -2514,7 +2514,6 @@ if (cluster.isMaster) {
         }
 
         console.log(error);
-        exit();
     });
 
     app.get('/tmp/:uid', function (req, res) {
