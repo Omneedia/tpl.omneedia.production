@@ -7,7 +7,7 @@
  *
  **/
 
-$_VERSION = "0.9.8c";
+$_VERSION = "0.9.8d";
 $_DEBUG = true;
 
 var Clients={
@@ -2094,7 +2094,7 @@ if (cluster.isMaster) {
         }
 
         console.log(error);
-        exit();
+
     });
 
     app.get('/stats', function (req, res) {
