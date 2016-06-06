@@ -149,12 +149,13 @@ if (cluster.isMaster) {
             fs.writeFileSync(__dirname + path.sep + ".." + path.sep + ".." + path.sep + "var" + path.sep + "pids" + path.sep + NS + path.sep + process.pid + ".pid", IP);
             console.log('registering drone...');
             // update cluster
+			if (registry.alias) var alias=' '+registry.alias; else alias="";
             socket.emit('ONLINE', {
                 drone: Manifest.namespace
                 , host: getIPAddress()
                 , port: IP
                 , pid: process.pid
-                , uri: registry.uri
+                , uri: registry.uri+alias
             });
             socket.on('REGISTER', function () {
                 console.log('registered.');
