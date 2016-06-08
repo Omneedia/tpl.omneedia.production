@@ -7,7 +7,7 @@
  *
  **/
 
-$_VERSION = "0.9.8d";
+$_VERSION = "0.9.8m";
 $_DEBUG = true;
 
 var Clients={
@@ -2006,6 +2006,13 @@ if (cluster.isMaster) {
     app.IO = require('socket.io')(http);
 
     app.use(require('cookie-parser')());
+
+    // Socket Sessions use mongodb
+    /*var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017/sio';
+    var mongo = require('socket.io-adapter-mongo');
+    app.IO.adapter(mongo({
+        uri: reg_session
+    }));*/
 	
 	var redis=require('socket.io-redis');
 	app.IO.adapter(redis(registry.cluster.split(':')[0]));
@@ -2478,6 +2485,7 @@ if (cluster.isMaster) {
                 Auth.user(profile, function (err, response) {
                     req.session.user = response;
                     res.setHeader('content-type', 'text/html');
+					OASocketonAuth(JSON.stringify(response));
                     res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");
                 });
             };
@@ -2488,6 +2496,7 @@ if (cluster.isMaster) {
                 Auth.user(profile, function (err, response) {
                     console.log(req.session);
                     req.session.user = response;
+					OASocketonAuth(JSON.stringify(response));
                     res.setHeader('content-type', 'text/html');
                     res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");
                 });
