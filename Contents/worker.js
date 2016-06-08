@@ -2006,13 +2006,6 @@ if (cluster.isMaster) {
     app.IO = require('socket.io')(http);
 
     app.use(require('cookie-parser')());
-
-    // Socket Sessions use mongodb
-    /*var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017/sio';
-    var mongo = require('socket.io-adapter-mongo');
-    app.IO.adapter(mongo({
-        uri: reg_session
-    }));*/
 	
 	var redis=require('socket.io-redis');
 	app.IO.adapter(redis(registry.cluster.split(':')[0]));
