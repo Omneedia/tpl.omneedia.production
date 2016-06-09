@@ -7,7 +7,7 @@
  *
  **/
 
-$_VERSION = "0.9.8m";
+$_VERSION = "0.9.8mb";
 $_DEBUG = true;
 
 var Clients={
@@ -2363,11 +2363,7 @@ if (cluster.isMaster) {
             , secret: 'omneedia_rulez'
             , saveUninitialized: true
             , resave: true
-            , cookie: {
-                path: '/'
-                , domain: zuri
-                , maxAge: 1000 * 60 * 24 // 24 hours
-            }
+			, rolling: true
             , store: new MongoStore({
                 url: reg_session
             })
