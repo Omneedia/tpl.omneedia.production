@@ -22,6 +22,7 @@
         "multer": "",
         "node-schedule": "",
         "socket.io": "",
+        "sequelize": "",
         "socket.io-client": "",
 		"mongoose": "",
 		"gridfs-stream": "",
