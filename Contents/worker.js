@@ -41,6 +41,27 @@ for (var e in networkInterfaces) {
     IP.push(networkInterfaces[e][0].address);
 };
 
+Math.uuid = function () {
+	var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+	var chars = CHARS
+		, uuid = new Array(36)
+		, rnd = 0
+		, r;
+	for (var i = 0; i < 36; i++) {
+		if (i == 8 || i == 13 || i == 18 || i == 23) {
+			uuid[i] = '-';
+		} else if (i == 14) {
+			uuid[i] = '4';
+		} else {
+			if (rnd <= 0x02) rnd = 0x2000000 + (Math.random() * 0x1000000) | 0;
+			r = rnd & 0xf;
+			rnd = rnd >> 4;
+			uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+		}
+	}
+	return uuid.join('');
+};
+
 function testPort(port, host, pid, cb) {
     net.createConnection(port, host).on("connect", function (e) {
         cb("success", pid, e);
@@ -2157,26 +2178,6 @@ if (cluster.isMaster) {
                     return require(__dirname + path.sep + 'node_modules' + path.sep + unit);
             };
 			x.getFile = function(filename,cb) {
-                Math.uuid = function () {
-                    var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
-                    var chars = CHARS
-                        , uuid = new Array(36)
-                        , rnd = 0
-                        , r;
-                    for (var i = 0; i < 36; i++) {
-                        if (i == 8 || i == 13 || i == 18 || i == 23) {
-                            uuid[i] = '-';
-                        } else if (i == 14) {
-                            uuid[i] = '4';
-                        } else {
-                            if (rnd <= 0x02) rnd = 0x2000000 + (Math.random() * 0x1000000) | 0;
-                            r = rnd & 0xf;
-                            rnd = rnd >> 4;
-                            uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
-                        }
-                    }
-                    return uuid.join('');
-                };
                 var uid = Math.uuid();			
 				if (fs.existsSync(filename)) cb(filename); else {
 					var mongoose = require('mongoose');  
@@ -2200,40 +2201,21 @@ if (cluster.isMaster) {
 					});										
 				}
 			};
-            x.temp = function (ext) {
-                Math.uuid = function () {
-                    var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
-                    var chars = CHARS
-                        , uuid = new Array(36)
-                        , rnd = 0
-                        , r;
-                    for (var i = 0; i < 36; i++) {
-                        if (i == 8 || i == 13 || i == 18 || i == 23) {
-                            uuid[i] = '-';
-                        } else if (i == 14) {
-                            uuid[i] = '4';
-                        } else {
-                            if (rnd <= 0x02) rnd = 0x2000000 + (Math.random() * 0x1000000) | 0;
-                            r = rnd & 0xf;
-                            rnd = rnd >> 4;
-                            uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
-                        }
-                    }
-                    return uuid.join('');
-                };
-                var uid = Math.uuid();
-                var dir = __dirname + path.sep + "tmp" + path.sep;
-                if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-                var filename = uid;
-                if (ext) filename += "." + ext;
-                return {
-                    uid: uid
-                    , filename: filename
-                    , directory: __dirname + path.sep + "tmp"
-                    , path: __dirname + path.sep + "tmp" + path.sep + filename
-                    , url: "/tmp/" + filename
-                };
-            };
+			x.temp = function (ext) {
+				var uid = Math.uuid();
+				var dir = __dirname + path.sep + "tmp" + path.sep+"tempfiles";
+				if (!fs.existsSync(__dirname + path.sep + "tmp")) fs.mkdirSync(__dirname + path.sep + "tmp");
+				if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+				var filename = uid;
+				if (ext) filename += "." + ext;
+				return {
+					uid: uid
+					, filename: filename
+					, dir: dir
+					, path: dir + path.sep + filename
+					, url: "/tmp/" + filename
+				};
+			};
             x.IO = {
                 send: function (uri, data, users) {
                     var o = {
@@ -2516,16 +2498,18 @@ if (cluster.isMaster) {
     });
 
     app.get('/tmp/:uid', function (req, res) {
-    	if (!fs.existsSync(__dirname + path.sep + "tmp")) fs.mkdirSync(__dirname + path.sep + "tmp");
-        var file = __dirname + path.sep + "tmp" + path.sep + req.params.uid;
-        if (!fs.existsSync(file)) {
-            res.sendStatus(404);
-        } else {
-            res.download(file);
-            res.on('finish', function () {
-                fs.unlink(file);
-            });
-        }
+		if (!fs.existsSync(__dirname + path.sep + "tmp")) fs.mkdirSync(__dirname + path.sep + "tmp"); 
+		if (!fs.existsSync(__dirname + path.sep + "tmp"+ path.sep + "tempfiles")) fs.mkdirSync(__dirname + path.sep + "tmp"+path.sep + "tempfiles");
+		var file = __dirname + path.sep + "tmp" + path.sep + "tempfiles" + path.sep + req.params.uid;
+		//console.log(file);
+		if (!fs.existsSync(file)) {
+			res.sendStatus(404);
+		} else {
+			res.download(file);
+			res.on('finish', function () {
+				//fs.unlink(file);
+			});
+		}
     });
 
     app.post('/api', processRoute);
@@ -2614,6 +2598,22 @@ if (cluster.isMaster) {
 					} else cb("MISMATCHED_OBJECT", null);
 				}
 			}
+		};
+
+		_App.temp = function (ext) {
+			var uid = Math.uuid();
+			var dir = __dirname + path.sep + "tmp" + path.sep+"tempfiles";
+			if (!fs.existsSync(__dirname + path.sep + "tmp")) fs.mkdirSync(__dirname + path.sep + "tmp");
+			if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+			var filename = uid;
+			if (ext) filename += "." + ext;
+			return {
+				uid: uid
+				, filename: filename
+				, dir: dir
+				, path: dir + path.sep + filename
+				, url: "/tmp/" + filename
+			};
 		};
 		
         _App.upload = {
