@@ -2516,6 +2516,7 @@ if (cluster.isMaster) {
     });
 
     app.get('/tmp/:uid', function (req, res) {
+    	if (!fs.existsSync(__dirname + path.sep + "tmp")) fs.mkdirSync(__dirname + path.sep + "tmp");
         var file = __dirname + path.sep + "tmp" + path.sep + req.params.uid;
         if (!fs.existsSync(file)) {
             res.sendStatus(404);
