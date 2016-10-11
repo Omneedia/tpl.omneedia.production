@@ -29,7 +29,7 @@
         "connect-mongo": "",
         "gridfs-storage-engine": "https://github.com/Omneedia/gridfs-storage-engine",
         "shelljs": "",
-		"socket.io-redis": "",
+		"socket.io-adapter-mongo": "",
 		"db": "https://github.com/Omneedia/db/tarball/master",
 		"api": "https://github.com/Omneedia/api/tarball/master",
 		"authom": "https://github.com/Omneedia/authom.git"
