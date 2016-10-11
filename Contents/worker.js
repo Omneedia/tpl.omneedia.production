@@ -1,13 +1,14 @@
 /**
  *
  *	Omneedia Worker Foundation
- *	v 0.9.8a
+ *	v 0.9.8n
  *
  * 	29/03/2016	Changed MongoDB to REDIS for socket.io		v 0.9.7b
+ * 	11/10/2016	MongoDB is the default engine for sessions,socketio, upload (drop REDIS)
  *
  **/
 
-$_VERSION = "0.9.8mb";
+$_VERSION = "0.9.8n";
 $_DEBUG = true;
 
 var Clients={
@@ -151,8 +152,8 @@ if (cluster.isMaster) {
         var cluster_host = registry.cluster.split(':')[0];
         if (registry.cluster.split(':').length > 1) var cluster_port = registry.cluster.split(':')[1];
         else var cluster_port = 80;
-        
-        console.log("Connecting to cluster " + 'http://' + cluster_host + ':' + cluster_port);
+		        
+		console.log("Connecting to cluster " + 'http://' + cluster_host + ':' + cluster_port);
         var socket = require('socket.io-client')('http://' + cluster_host + ':' + cluster_port);
         socket.on('disconnect', function () {
             console.log("Loosing cluster...");
@@ -161,6 +162,7 @@ if (cluster.isMaster) {
             console.log('Cluster Connected');
             //freeport(function (er, port) {
             console.log('Listening to port ' + IP);
+			
             // register port with cluster
             var wrench = require('wrench');
             wrench.mkdirSyncRecursive(__dirname + path.sep + ".." + path.sep + ".." + path.sep + "var" + path.sep + "pids" + path.sep + NS, 0777);
@@ -2029,14 +2031,11 @@ if (cluster.isMaster) {
     app.use(require('cookie-parser')());
 
     // Socket Sessions use mongodb
-    /*var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017/sio';
+	//console.log(reg°session);
     var mongo = require('socket.io-adapter-mongo');
-    app.IO.adapter(mongo({
-        uri: reg_session
-    }));*/
+    app.IO.adapter(mongo({ host:  registry.cluster.split(':')[0], port: 27017, db: 'io' }));
 	
-	var redis=require('socket.io-redis');
-	app.IO.adapter(redis(registry.cluster.split(':')[0]));
+	//app.IO.adapter(Redis);
 	
     app.IO.on('connection', function (socket) {
         console.log('connection...');
@@ -2107,7 +2106,15 @@ if (cluster.isMaster) {
         limit: "5000mb"
     }));
 
-    app.use(allowCrossDomain);
+    //app.use(allowCrossDomain);
+	
+app.use(function(req, res, next) {
+    res.header('Access-Control-Allow-Credentials', true);
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
+    next();
+});	
 
     app.use(function (error, req, res, next) {
         if (error.status === 400) {
@@ -2344,10 +2351,14 @@ if (cluster.isMaster) {
             key: 'omneedia'
             , secret: 'omneedia_rulez'
             , saveUninitialized: true
-            , resave: true
-			, rolling: true
+            , resave: true,
+			cookie: {
+				path: '/',
+				domain: zuri,
+				maxAge: 1000 * 60 * 24 // 24 hours
+			}
             , store: new MongoStore({
-                url: reg_session
+                url: reg_session+'/sessions'
             })
         }));
     };
@@ -2409,7 +2420,7 @@ if (cluster.isMaster) {
             res.end(JSON.stringify(req.user, null, 4));
         });
         app.get('/account', ensureAuthenticated, function (req, res) {
-            console.log(req);
+            console.log(req.session);
             if (!req.user) req.user = req.session.user;
             var response = [];
             if (fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
@@ -2668,15 +2679,24 @@ if (cluster.isMaster) {
                         }
                     }
 					, toBase64: function (filename,cb) {
+						
 						if (!filename) cb("NOT_FOUND",null); else {
+							if (typeof filename === "object") {
+								var obj=filename;
+							} else {
+								var obj={
+									docId: filename,
+									filename: ""
+								}
+							}
 							var mongoose = require('mongoose');  
 							var Grid = require('gridfs');
 							Grid.mongo = mongoose.mongo;
 							var conn = mongoose.createConnection(reg_session + '/upload');
 							conn.once('open', function () {
 								var gfs = Grid(conn.db);
-								gfs.readFile({_id: filename},function(err,buf){
-									cb(err,"data:" + _EXT_.getContentType(path) + ";base64," + buf.toString('base64'));
+								gfs.readFile({_id: obj.docId},function(err,buf){
+									cb(err,"data:" + _EXT_.getContentType(obj.filename) + ";base64," + buf.toString('base64'));
 								});
 							});
 						};
