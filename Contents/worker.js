@@ -164,6 +164,10 @@ if (cluster.isMaster) {
             console.log('Listening to port ' + IP);
 			
             // register port with cluster
+    		
+			var NS = __dirname.split(path.sep)[__dirname.split(path.sep).length - 3];
+    		var _NS = "/" + NS;
+			
             var wrench = require('wrench');
             wrench.mkdirSyncRecursive(__dirname + path.sep + ".." + path.sep + ".." + path.sep + "var" + path.sep + "pids" + path.sep + NS, 0777);
             console.log("Worker thread " + NS + " started at " + getIPAddress() + ":" + IP + " - pid: " + process.pid + "\n");
@@ -198,7 +202,7 @@ if (cluster.isMaster) {
 
 } else {
 
-    console.log("- thread started.");
+    //console.log("- thread started.");
 
     if (fs.existsSync(__dirname + path.sep + 'etc' + path.sep + 'settings-prod.json')) {
         var _set = fs.readFileSync(__dirname + path.sep + 'etc' + path.sep + 'settings-prod.json', 'utf-8');
@@ -1943,8 +1947,7 @@ if (cluster.isMaster) {
         }
     };
 
-    var NS = __dirname.split(path.sep)[__dirname.split(path.sep).length - 2];
-    var _NS = "/" + NS;
+    var NS = __dirname.split(path.sep)[__dirname.split(path.sep).length - 3];
 
     /**
      *
@@ -2340,9 +2343,13 @@ app.use(function(req, res, next) {
         );
 
     };
-
-    var point = registry.uri.indexOf('.');
-    var zuri = registry.uri.substr(point, 255);
+	if (Array.isArray(registry.uri)) {
+    	var point = registry.uri[0].indexOf('.');
+    	var zuri = registry.uri[0].substr(point, 255);		
+	} else {
+    	var point = registry.uri.indexOf('.');
+    	var zuri = registry.uri.substr(point, 255);
+	};
 
     // check session server settings from cluster
     if (reg_session.indexOf('mongodb://') > -1) {
