@@ -2295,6 +2295,7 @@ app.use(function(req, res, next) {
         } else {
             d.push(data);
         };
+		resp.writeHead(200, {'Content-Type': 'application/json','charset': 'utf-8'});
         process_api(d, 0, [], resp);
     };
 
@@ -2424,10 +2425,10 @@ app.use(function(req, res, next) {
                 };
             };
             req.user.profiles = response;
+			res.writeHead(200, {'Content-Type': 'application/json','charset': 'utf-8'});
             res.end(JSON.stringify(req.user, null, 4));
         });
         app.get('/account', ensureAuthenticated, function (req, res) {
-            console.log(req.session);
             if (!req.user) req.user = req.session.user;
             var response = [];
             if (fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
@@ -2438,6 +2439,7 @@ app.use(function(req, res, next) {
                 };
             };
             req.user.profiles = response;
+			res.writeHead(200, {'Content-Type': 'application/json','charset': 'utf-8'});
             res.end(JSON.stringify(req.user, null, 4));
         });
 
@@ -2537,7 +2539,13 @@ app.use(function(req, res, next) {
             'Content-Type': 'application/json'
             , 'charset': 'utf-8'
         });
-        res.end('API Service');
+		var response = {
+			omneedia: {
+				api: "WORKER"
+			}
+			, status: "ONLINE"
+        };
+        res.end(JSON.stringify(response,null,4));
     });
 
     app.get('/api/:ns', function (req, res) {
