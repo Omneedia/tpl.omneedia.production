@@ -2521,13 +2521,18 @@ app.use(function(req, res, next) {
 		if (!fs.existsSync(__dirname + path.sep + "tmp")) fs.mkdirSync(__dirname + path.sep + "tmp"); 
 		if (!fs.existsSync(__dirname + path.sep + "tmp"+ path.sep + "tempfiles")) fs.mkdirSync(__dirname + path.sep + "tmp"+path.sep + "tempfiles");
 		var file = __dirname + path.sep + "tmp" + path.sep + "tempfiles" + path.sep + req.params.uid;
-		//console.log(file);
+		var ext=_EXT_.getContentType(req.params.uid);
+		res.header("Content-Type", ext+"; charset=utf-8");
 		if (!fs.existsSync(file)) {
 			res.sendStatus(404);
 		} else {
+			if (ext=="text/html") 
+			res.end(require('fs').readFileSync(file,'utf-8'))
+			else
+			res.download(file);
 			res.download(file);
 			res.on('finish', function () {
-				//fs.unlink(file);
+				require('fs').unlink(file);
 			});
 		}
     });
