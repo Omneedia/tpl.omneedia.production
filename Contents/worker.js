@@ -1,14 +1,11 @@
 /**
  *
  *	Omneedia Worker Foundation
- *	v 0.9.8n
- *
- * 	29/03/2016	Changed MongoDB to REDIS for socket.io		v 0.9.7b
- * 	11/10/2016	MongoDB is the default engine for sessions,socketio, upload (drop REDIS)
+ *	v 0.9.9-Alpha
  *
  **/
 
-$_VERSION = "0.9.8n";
+$_VERSION = "0.9.9-Alpha";
 $_DEBUG = true;
 
 var Clients={
@@ -26,12 +23,22 @@ var path = require('path');
 var express = require("express");
 var os_util = require("os-utils");
 var request = require("request");
+
+ // read Registry  
+var registry = JSON.parse(require('fs').readFileSync(__dirname + require('path').sep + '..' + require('path').sep + 'registry.json'));
+
+if (registry.proxy != "") var Request = request.defaults({
+	'proxy': registry.proxy
+});
+else var Request = request;
+
+global.Request = Request;
+
 var wrench = require('wrench');
 var numCPUs = require('os').cpus().length;
 var networkInterfaces = require('os').networkInterfaces();
 
-// read Registry  
-var registry = JSON.parse(require('fs').readFileSync(__dirname + require('path').sep + '..' + require('path').sep + 'registry.json'));
+
 
 // read app.manifest
 var json = fs.readFileSync(__dirname + path.sep + "app.manifest");
@@ -164,10 +171,6 @@ if (cluster.isMaster) {
             console.log('Listening to port ' + IP);
 			
             // register port with cluster
-    		
-			var NS = __dirname.split(path.sep)[__dirname.split(path.sep).length - 3];
-    		var _NS = "/" + NS;
-			
             var wrench = require('wrench');
             wrench.mkdirSyncRecursive(__dirname + path.sep + ".." + path.sep + ".." + path.sep + "var" + path.sep + "pids" + path.sep + NS, 0777);
             console.log("Worker thread " + NS + " started at " + getIPAddress() + ":" + IP + " - pid: " + process.pid + "\n");
@@ -202,7 +205,7 @@ if (cluster.isMaster) {
 
 } else {
 
-    //console.log("- thread started.");
+    console.log("- thread started.");
 
     if (fs.existsSync(__dirname + path.sep + 'etc' + path.sep + 'settings-prod.json')) {
         var _set = fs.readFileSync(__dirname + path.sep + 'etc' + path.sep + 'settings-prod.json', 'utf-8');
@@ -1915,7 +1918,7 @@ if (cluster.isMaster) {
     }();
 
     process.on('uncaughtException', function (err) {
-        console.error(err.stack);
+        console.error(err);
         console.log("drone unhandled exception... But continue!");
     });
 
@@ -1947,8 +1950,11 @@ if (cluster.isMaster) {
         }
     };
 
-    var NS = __dirname.split(path.sep)[__dirname.split(path.sep).length - 3];
-
+    var NS = __dirname.split(path.sep)[__dirname.split(path.sep).length - 2];
+    var _NS = "/" + NS;
+	
+	var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017';
+	
     /**
      *
      * AUTH STRATEGY
@@ -1963,6 +1969,7 @@ if (cluster.isMaster) {
 
             if (profile.provider == "google") var typ = "google";
             if (profile.provider == "cas") var typ = "cas";
+			if (profile.provider == "letmein") var typ = "letmein";
             Auth.login(profile, typ, function (response) {
                 fn(null, response);
             });
@@ -2027,18 +2034,15 @@ if (cluster.isMaster) {
 
     // initialize socket.io
     var http = app.listen(0, getIPAddress());
-
-    //var http = require('http').createServer(app);
+	
     app.IO = require('socket.io')(http);
 
     app.use(require('cookie-parser')());
 
     // Socket Sessions use mongodb
-	//console.log(reg°session);
+
     var mongo = require('socket.io-adapter-mongo');
-    app.IO.adapter(mongo({ host:  registry.cluster.split(':')[0], port: 27017, db: 'io' }));
-	
-	//app.IO.adapter(Redis);
+    app.IO.adapter(mongo(reg_session+'/io'));
 	
     app.IO.on('connection', function (socket) {
         console.log('connection...');
@@ -2295,7 +2299,6 @@ app.use(function(req, res, next) {
         } else {
             d.push(data);
         };
-		resp.writeHead(200, {'Content-Type': 'application/json','charset': 'utf-8'});
         process_api(d, 0, [], resp);
     };
 
@@ -2303,7 +2306,7 @@ app.use(function(req, res, next) {
      * SESSION
      */
 
-    var reg_session = 'mongodb://' + registry.cluster.split(':')[0] + ':27017';
+    
 
     var session = require('express-session');
 
@@ -2344,13 +2347,9 @@ app.use(function(req, res, next) {
         );
 
     };
-	if (Array.isArray(registry.uri)) {
-    	var point = registry.uri[0].indexOf('.');
-    	var zuri = registry.uri[0].substr(point, 255);		
-	} else {
-    	var point = registry.uri.indexOf('.');
-    	var zuri = registry.uri.substr(point, 255);
-	};
+
+    var point = registry.uri.indexOf('.');
+    var zuri = registry.uri.substr(point, 255);
 
     // check session server settings from cluster
     if (reg_session.indexOf('mongodb://') > -1) {
@@ -2366,7 +2365,7 @@ app.use(function(req, res, next) {
 				maxAge: 1000 * 60 * 24 // 24 hours
 			}
             , store: new MongoStore({
-                url: reg_session+'/sessions'
+                url: reg_session
             })
         }));
     };
@@ -2425,10 +2424,10 @@ app.use(function(req, res, next) {
                 };
             };
             req.user.profiles = response;
-			res.writeHead(200, {'Content-Type': 'application/json','charset': 'utf-8'});
             res.end(JSON.stringify(req.user, null, 4));
         });
         app.get('/account', ensureAuthenticated, function (req, res) {
+            console.log(req.session);
             if (!req.user) req.user = req.session.user;
             var response = [];
             if (fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
@@ -2439,20 +2438,23 @@ app.use(function(req, res, next) {
                 };
             };
             req.user.profiles = response;
-			res.writeHead(200, {'Content-Type': 'application/json','charset': 'utf-8'});
             res.end(JSON.stringify(req.user, null, 4));
         });
 
         function ensureAuthenticated(req, res, next) {
+			if (MSettings.auth.cas) req.session.authType = "CAS";
+			if (MSettings.auth.google) req.session.authType = "GOOGLE";
+			if (MSettings.auth.letmein) {
+				req.session.authType = "LETMEIN";
+				req.session.host = MSettings.auth.letmein.server.uri;
+			};
             if (!req.user) req.user = req.session.user;
             if (req.user) {
                 return next();
             };
             res.redirect('/login');
         };
-        if (MSettings.auth.local) {
-            // a développer !
-        };
+		
         if (MSettings.auth.cas) {
 
             authom.createServer({
@@ -2471,11 +2473,20 @@ app.use(function(req, res, next) {
                 , scope: MSettings.auth.google.scope
             })
 
-
         };
+		
+		if (MSettings.auth.letmein) {
+			
+			authom.createServer({
+				service: "letmein",
+				host: MSettings.auth.letmein.server.uri
+			});
+			
+		};
 
         authom.on("auth", function (req, res, data) {
-
+			console.log('AAAAAAAAAAAA');
+			console.log(data);
             if (data.service == "google") {
                 var profile = {};
                 profile.username = data.data;
@@ -2499,6 +2510,24 @@ app.use(function(req, res, next) {
                     res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");
                 });
             };
+			if (data.service == "letmein") {
+				console.log('$$$$$$');
+				console.log(data);
+				var profile = {
+					provider: "letmein",
+					username: data.username
+				};
+				req.session.user = data;
+				console.log('===');
+				console.log(profile);
+				Auth.user(profile, function (err, response) {
+					req.session.user = response;
+					console.log(response);
+					OASocketonAuth(JSON.stringify(response));
+					res.end("<html><body><script>setTimeout(window.close, 1000);</script></body></html>");
+				});
+				return;
+			};
         });
 
         authom.on("error", function (req, res, data) {
@@ -2522,14 +2551,13 @@ app.use(function(req, res, next) {
 		if (!fs.existsSync(__dirname + path.sep + "tmp"+ path.sep + "tempfiles")) fs.mkdirSync(__dirname + path.sep + "tmp"+path.sep + "tempfiles");
 		var file = __dirname + path.sep + "tmp" + path.sep + "tempfiles" + path.sep + req.params.uid;
 		var ext=_EXT_.getContentType(req.params.uid);
-		res.header("Content-Type", ext+"; charset=utf-8");
+		//res.header("Content-Type", ext+"; charset=utf-8");
 		if (!fs.existsSync(file)) {
 			res.sendStatus(404);
 		} else {
 			if (ext=="text/html") 
 			res.end(require('fs').readFileSync(file,'utf-8'))
 			else
-			res.download(file);
 			res.download(file);
 			res.on('finish', function () {
 				require('fs').unlink(file);
@@ -2544,13 +2572,7 @@ app.use(function(req, res, next) {
             'Content-Type': 'application/json'
             , 'charset': 'utf-8'
         });
-		var response = {
-			omneedia: {
-				api: "WORKER"
-			}
-			, status: "ONLINE"
-        };
-        res.end(JSON.stringify(response,null,4));
+        res.end('API Service');
     });
 
     app.get('/api/:ns', function (req, res) {
