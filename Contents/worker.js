@@ -6,7 +6,7 @@
  **/
 
 $_VERSION = "0.9.9-Alpha";
-$_DEBUG = true;
+$_FIRST = true;
 
 var Clients={
     uid: {},
@@ -111,58 +111,85 @@ function master(err,port) {
 	
 	    var cluster_host = registry.cluster;
 		console.log("	- Connecting to cluster " + cluster_host);
+		
+		// SOCKET CLIENT
 		global.socket = io(cluster_host, {
-			query: "engine=worker&registry="+registry.key+"&iokey=" + setToken()
+			query: "engine=instance&registry="+registry.key+"&iokey=" + setToken()
 		});
 
-        socket.on('disconnect', function () {
+        global.socket.on('disconnect', function () {
             console.log("	! Loosing cluster...");
         });
 	
-        socket.on('connect', function () {
+        global.socket.on('connect', function () {
             console.log('	  Cluster Connected.');
-			socket.on('REGISTER_WORKER',function(config) {
-				fs.writeFile(__dirname+path.sep+'etc'+path.sep+'settings.json',JSON.stringify(JSON.parse(config)),function() {
-					console.log('	  # Registered.');
-					
-					console.log("	- Launching instance");
-					
-					// Helper function for spawning worker at index 'i'.
-					var spawn = function (i) {
-						workers[i] = cluster.fork();
-						workers[i].on('exit', function (worker, code, signal) {
-							console.log('	! Respawning worker', i);
-							spawn(i);
-						});
-					};
+			/*socket.emit('OASERVICE#ONLINE', {
+				service: "instance"
+				, uuid: global.registry.key
+				, host: require('os').hostname
+				//, label: Config.label
+				, pid: process.pid
+				, threads: numCPUs
+				, os: require('os').platform()
+				, release: require('os').release()
+			});
+			socket.on('OASERVICE#REGISTER', function (dta) {
+				if (dta.uuid = global.registry.key) {
 
-					// Spawn workers.
-					for (var i = 0; i < numCPUs; i++) {
-						spawn(i);
-					}
+					console.log('- Instance registered: PID' + dta.pid);
+					console.log('');
 
-					var worker_index = function (ip, len) {
-						var s = '';
-						for (var i = 0, _len = ip.length; i < _len; i++) {
-							if (ip[i] !== '.') {
-								s += ip[i];
-							}
-						};
-						if (s.indexOf(':') > -1) s = s.substr(s.lastIndexOf(':') + 1, 255);
-						return Number(s) % len;
-					};
-
-					var server = net.createServer({
-						pauseOnConnect: true
-					}, function (connection) {
-						var worker = workers[worker_index(connection.remoteAddress, numCPUs)];
-						//console.log(connection.remoteAddress);
-						worker.send('sticky-session:connection', connection);
-					}).listen(port);					
-					
-				});
-			})
+				}
+			});	*/	
 		});
+		global.socket.on('REGISTER_PROFILE',function(config) {
+			fs.writeFile(__dirname+path.sep+'auth'+path.sep+'Profiler.json',JSON.stringify(config),function() {
+				console.log('	! Updating profile.');	
+			});
+
+		});
+		global.socket.on('REGISTER_WORKER',function(config) {
+			fs.writeFile(__dirname+path.sep+'etc'+path.sep+'settings.json',JSON.stringify(JSON.parse(config)),function() {
+				console.log('	  # Registered.');
+				if (!$_FIRST) return;
+				console.log("	- Launching instance");
+				$_FIRST=false;
+				// Helper function for spawning worker at index 'i'.
+				var spawn = function (i) {
+					workers[i] = cluster.fork();
+					workers[i].on('exit', function (worker, code, signal) {
+						console.log('	! Respawning worker', i);
+						spawn(i);
+					});
+				};
+
+				// Spawn workers.
+				for (var i = 0; i < numCPUs; i++) {
+					spawn(i);
+				}
+
+				var worker_index = function (ip, len) {
+					var s = '';
+					for (var i = 0, _len = ip.length; i < _len; i++) {
+						if (ip[i] !== '.') {
+							s += ip[i];
+						}
+					};
+					if (s.indexOf(':') > -1) s = s.substr(s.lastIndexOf(':') + 1, 255);
+					return Number(s) % len;
+				};
+
+				var server = net.createServer({
+					pauseOnConnect: true
+				}, function (connection) {
+					var worker = workers[worker_index(connection.remoteAddress, numCPUs)];
+					//console.log(connection.remoteAddress);
+					worker.send('sticky-session:connection', connection);
+				}).listen(port);					
+
+			});
+		})
+
 	
 };
 
@@ -174,7 +201,7 @@ function server() {
 		
 		process.on('uncaughtException', function (err) {
 			console.error(err);
-			console.log("drone unhandled exception... But continue!");
+			console.log("	! Drone unhandled exception... But continue!");
 		});
 
 		var NS = manifest.namespace;
@@ -193,14 +220,33 @@ function server() {
 		
     	var http = app.listen(0, getIPAddress());
 
-    	// Socket
+    	// Socket SERVER
 		app.IO = require('socket.io')(http);
-
+		
+		// Cluster manage session
     	var mongo = require('socket.io-adapter-mongo');
     	app.IO.adapter(mongo(reg_session+'/io'));
-	
+		
+		
     	app.IO.on('connection', function (socket) {
-        	console.log('- Socket connected.');
+			socket.on('disconnect',function(s){
+				console.log('	* Closing socket id#'+socket.id+' - '+s);
+				app.IO.emit('INSTANCE#OFFLINE',{
+					sid: socket.id
+				});
+			});
+        	console.log('	- Socket id#'+socket.id+' connected.');
+			app.IO.emit('INSTANCE#ONLINE',{
+				uid: global.registry.key
+				, task: global.registry.task
+				, namespace: global.manifest.namespace
+				, sid: socket.id
+				, host: getIPAddress()
+				, pid: process.pid
+				, threads: numCPUs
+				, os: require('os').platform()
+				, release: require('os').release()	
+			});
 			var response = {
 				omneedia: {
 					engine: $_VERSION

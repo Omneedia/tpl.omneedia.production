@@ -17,16 +17,29 @@ module.exports = function(app,authom,MSettings) {
 			Auth.using = function (unit) {
 				return require(__dirname + path.sep + ".." + path.sep + 'node_modules' + path.sep + unit);
 			};
-			Auth.getProfile = function (user) {
+			Auth.getProfile = function (user,cb) {
 				var response = [];
-				/*if (fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
-					var profiler = JSON.parse(require('fs').readFileSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json', 'utf-8'));
-					for (var el in profiler.profile) {
-						var p = profiler.profile[el];
-						if (p.indexOf(user) > -1) response.push(el);
+				if (cb) {
+					fs.readFile(__dirname + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json', function(e,r) {
+						var profiler = JSON.parse(r.toString('utf-8'));
+						for (var el in profiler.profile) {
+							var p = profiler.profile[el];
+							if (p.indexOf(user) > -1) response.push(el);
+						};
+						cb(response);
+					})
+				} else {
+					// DO NOT USE ANYMORE
+					// DEPRECATED
+					if (fs.existsSync(__dirname + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
+						var profiler = JSON.parse(require('fs').readFileSync(__dirname + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json', 'utf-8'));
+						for (var el in profiler.profile) {
+							var p = profiler.profile[el];
+							if (p.indexOf(user) > -1) response.push(el);
+						};
 					};
-				};*/
-				return response;
+					return response;
+				}
 			};
 			Auth.login(profile, auth_type, function (response) {
 				cb(response);
@@ -49,12 +62,6 @@ module.exports = function(app,authom,MSettings) {
 	
 	
 	function ensureAuthenticated(req, res, next) {
-		/*if (global.MSettings.auth.cas) req.session.authType = "CAS";
-		if (global.MSettings.auth.google) req.session.authType = "GOOGLE";
-		if (global.MSettings.auth.letmein) {
-			req.session.authType = "LETMEIN";
-			req.session.host = MSettings.auth.letmein.server.uri;
-		};*/
 		if (!req.user) req.user = req.session.user;
 		if (req.user) {
 			return next();
@@ -67,19 +74,16 @@ module.exports = function(app,authom,MSettings) {
 		console.log(req.session);
 		if (!req.user) req.user = req.session.user;
 		var response = [];
-		// TO DO PROFILES //
-		/*fs.readFile(__dirname + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json',function(e,r) {
-			
-		});
-		if (fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
-			var profiler = JSON.parse(require('fs').readFileSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json', 'utf-8'));
+		fs.readFile(__dirname + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json',function(e,r) {
+			if (e) return res.end(JSON.stringify(req.user));
+			var profiler = JSON.parse(r.toString('utf-8'));
 			for (var el in profiler.profile) {
 				var p = profiler.profile[el];
 				if (p.indexOf(req.user.mail.split('@')[0]) > -1) response.push(el);
 			};
-		};
-		req.user.profiles = response;*/
-		res.end(JSON.stringify(req.user, null, 4));
+			req.user.profiles = response;
+			res.end(JSON.stringify(req.user));			
+		});
 	});
 	
 	app.post('/account', ensureAuthenticated, function (req, res) {
@@ -95,25 +99,17 @@ module.exports = function(app,authom,MSettings) {
         };*/
         if (!req.user) req.user = req.session.user;
         var response = [];
-		
-		req.user.profiles = {};
-		
-		// TO DO PROFILES ///
-		
-		/*
-        if (fs.existsSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json')) {
-                var profiler = JSON.parse(require('fs').readFileSync(PROJECT_WEB + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json', 'utf-8'));
-                for (var el in profiler.profile) {
-                    var p = profiler.profile[el];
-                    if (p.indexOf(req.user.mail.split('@')[0]) > -1) response.push(el);
-                };
-        };
-        req.user.profiles = response;
-		*/
-		console.log('----');
-		console.log(req.user);
-		console.log('----');
-        res.end(JSON.stringify(req.user, null, 4));
+				
+		fs.readFile(__dirname + path.sep + ".." + path.sep + "auth" + path.sep + 'Profiler.json',function(e,r) {
+			if (e) return res.end(JSON.stringify(req.user));
+			var profiler = JSON.parse(r.toString('utf-8'));
+			for (var el in profiler.profile) {
+				var p = profiler.profile[el];
+				if (p.indexOf(req.user.mail.split('@')[0]) > -1) response.push(el);
+			};
+			req.user.profiles = response;
+			res.end(JSON.stringify(req.user));			
+		});
 
 
    	});		
