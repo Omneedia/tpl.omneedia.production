@@ -84,7 +84,10 @@ function freeport(cb) {
 // read Registry
 function read_registry(cb) {
 	fs.readFile(__dirname + require('path').sep + '..' + require('path').sep + 'registry.json',function(e,r) {
-		if (e) return cb(process.env); else {
+		if (e) {
+			global.registry = process.env;
+			cb(); 
+		} else {
 			global.registry = JSON.parse(r.toString('utf-8'));
 			cb();
 		};
