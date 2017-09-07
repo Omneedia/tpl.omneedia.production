@@ -1,70 +1,24 @@
-/**
- *
- *	Omneedia Worker Foundation
- *	v 0.9.9-Alpha
- *
- **/
-
-$_VERSION = "0.9.9-Alpha";
-$_FIRST = true;
-
-var Clients={
-    uid: {},
-    mail: {}
+const OMNEEDIA={
+	engine:"worker",
+	version: "1.0.0a"
 };
 
+var fs=require('fs');
 var path = require('path');
-var cluster = require('cluster');
-var os = require('os');
-var fs = require('fs');
-var net = require('net');
-var shelljs = require('shelljs');
-var path = require('path');
-var express = require("express");
-var os_util = require("os-utils");
-var request = require("request");
-var io = require('socket.io-client');
-var authom = require("authom");
 
-var numCPUs="", networkInterfaces="";
+var cluster=require('cluster');
+var numCPUs = require('os').cpus().length;
 
-var Date  	= 	require('./lib/dates')();
-var Math  	= 	require('./lib/math')();
-var API		= 	require('./lib/api');
-var APP		= 	require('./lib/app');
-var AUTH	=	require('./lib/auth');
+// check env
+var check_env=-1;
 
-function setToken() {
-	var d = new Date().toMySQL().split(' ')[0];
-	return require('crypto').createHash('md5').update(d).digest('hex');
+if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'drones')) {
+	fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'drones');
+	check_env=1;
 };
-
-function testPort(port, host, pid, cb) {
-    net.createConnection(port, host).on("connect", function (e) {
-        cb("success", pid, e);
-    }).on("error", function (e) {
-        cb("failure", pid, e);
-    });
-};
-
-function isFunction(functionToCheck) {
-	var getType = {};
-	return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
-};	
-
-function getIPAddress() {
-    var interfaces = require('os').networkInterfaces();
-    for (var devName in interfaces) {
-        var iface = interfaces[devName];
-
-        for (var i = 0; i < iface.length; i++) {
-            var alias = iface[i];
-            if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal)
-                return alias.address;
-        }
-    }
-
-    return '0.0.0.0';
+if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'packages')) {
+	fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'packages');
+	check_env=1;
 };
 
 function freeport(cb) {
@@ -81,398 +35,297 @@ function freeport(cb) {
     server.listen(0);
 };
 
-// read Registry
-function read_registry(cb) {
-	fs.readFile(__dirname + require('path').sep + '..' + require('path').sep + 'registry.json',function(e,r) {
-		if (e) return cb(process.env); else {
-			global.registry = JSON.parse(r.toString('utf-8'));
-			cb();
-		};
-	});
+if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'config')) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'config');
+
+if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'config'+path.sep+'workers.json')) {
+	var cmd={
+		"cluster" : "cluster_host:9191",
+		"threads" : "*",
+		"worker" : {
+			"threads": "*"
+		},
+		"key"	  : "a6b3Efdq",
+		"port"	  : "9090"
+	};
+	fs.writeFileSync(__dirname+path.sep+'..'+path.sep+'config'+path.sep+'workers.json',JSON.stringify(cmd,null,4));
+	check_env=1;
 };
 
-// read Manifest
-function read_manifest(cb) {
-	fs.readFile(__dirname + require('path').sep + 'app.manifest',function(e,r) {
-		if (e) return new Error('MANIFEST_NOT_FOUND'); else {
-			global.manifest = JSON.parse(r.toString('utf-8'));
-			cb();
-		}
-	});
+//
+
+var json=fs.readFileSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"workers.json");
+var Config = JSON.parse(json);
+
+function getIPAddress() {
+  var interfaces = require('os').networkInterfaces();
+  for (var devName in interfaces) {
+    var iface = interfaces[devName];
+
+    for (var i = 0; i < iface.length; i++) {
+      var alias = iface[i];
+      if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal)
+        return alias.address;
+    }
+  }
+
+  return '0.0.0.0';
 };
 
-function master(err,port) {
+if (Config.threads != "*") {
+    //if (Config.threads * 1 <= numCPUs)
+	numCPUs = Config.worker.threads * 1;
+};
+
+if (!Config.label) {
+	var shortid=require('shortid');
+	Config.label=shortid.generate();
+	fs.writeFileSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"workers.json",JSON.stringify(Config,null,4));
+};
+
+if (cluster.isMaster) {
+	if (check_env==1) {
+		process.exit();
+		return;
+	} else {
+		for (var i = 0, n = numCPUs; i < n; i += 1) cluster.fork();
+		console.log('');
+		console.log('  Omneedia Worker started at '+getIPAddress()+":"+Config.port+" ("+numCPUs+" threads)");
+
+		var cluster_host = Config.cluster.split(':')[0];
+
+		console.log("  Connecting to cluster " + cluster_host);
 		
-		var workers = [];
-		// test
-		port=3000;
-        
-		console.log('Omneedia Worker started at ' + getIPAddress() + ":" + port + " (" + numCPUs + " threads)");
-	
-	    var cluster_host = registry.cluster;
-		console.log("	- Connecting to cluster " + cluster_host);
+		//var socket = require('socket.io-client')('http://' + cluster_host,{query:"token=bar"});
 		
-		// SOCKET CLIENT
-		global.socket = io(cluster_host, {
-			query: "engine=instance&registry="+registry.key+"&iokey=" + setToken()
+		var socket = require('socket.io-client')('https://' + cluster_host,{query:"cccc=e18f07a846016c0559a6bc70776f598addf24cfe712d2f388fe7fcb0540ffc45ada581dbadb22457eb5c44bf182890ca"});
+
+		socket.on('disconnect', function () {
+			console.log(' ');
+			console.log("  Cluster lost...".red);
 		});
 
-        global.socket.on('disconnect', function () {
-            console.log("	! Loosing cluster...");
-        });
-	
-        global.socket.on('connect', function () {
-            console.log('	  Cluster Connected.');
-			/*socket.emit('OASERVICE#ONLINE', {
-				service: "instance"
-				, uuid: global.registry.key
-				, host: require('os').hostname
-				//, label: Config.label
+		socket.on('connect', function () {
+			console.log(' ');
+			console.log('  Cluster Connected');
+
+			// update cluster
+			if (Config.hostname) var hostname=Config.hostname; else var hostname=getIPAddress()+':'+Config.port;
+			socket.emit('OASERVICE#ONLINE', {
+				service: "worker"
+				, host: hostname
+				, label: Config.label
 				, pid: process.pid
 				, threads: numCPUs
 				, os: require('os').platform()
 				, release: require('os').release()
 			});
-			socket.on('OASERVICE#REGISTER', function (dta) {
-				if (dta.uuid = global.registry.key) {
-
-					console.log('- Instance registered: PID' + dta.pid);
-					console.log('');
-
-				}
-			});	*/	
-		});
-		global.socket.on('REGISTER_PROFILE',function(config) {
-			fs.writeFile(__dirname+path.sep+'auth'+path.sep+'Profiler.json',JSON.stringify(config),function() {
-				console.log('	! Updating profile.');	
+			socket.on('OASERVICE#REGISTER', function () {
+				console.log('  - Worker engine registered.');
 			});
 
 		});
-		global.socket.on('REGISTER_WORKER',function(config) {
-			fs.writeFile(__dirname+path.sep+'etc'+path.sep+'settings.json',JSON.stringify(JSON.parse(config)),function() {
-				console.log('	  # Registered.');
-				if (!$_FIRST) return;
-				console.log("	- Launching instance");
-				$_FIRST=false;
-				// Helper function for spawning worker at index 'i'.
-				var spawn = function (i) {
-					workers[i] = cluster.fork();
-					workers[i].on('exit', function (worker, code, signal) {
-						console.log('	! Respawning worker', i);
-						spawn(i);
-					});
-				};
 
-				// Spawn workers.
-				for (var i = 0; i < numCPUs; i++) {
-					spawn(i);
-				}
+		socket.on('event', function (data) {
 
-				var worker_index = function (ip, len) {
-					var s = '';
-					for (var i = 0, _len = ip.length; i < _len; i++) {
-						if (ip[i] !== '.') {
-							s += ip[i];
-						}
-					};
-					if (s.indexOf(':') > -1) s = s.substr(s.lastIndexOf(':') + 1, 255);
-					return Number(s) % len;
-				};
 
-				var server = net.createServer({
-					pauseOnConnect: true
-				}, function (connection) {
-					var worker = workers[worker_index(connection.remoteAddress, numCPUs)];
-					//console.log(connection.remoteAddress);
-					worker.send('sticky-session:connection', connection);
-				}).listen(port);					
-
-			});
-		})
-
-	
-};
-
-function server() {
-	console.log("	+ Thread started.");
-	fs.readFile(__dirname + path.sep + 'etc' + path.sep + 'settings.json',function(e,settings) {
-		
-		global.MSettings = JSON.parse(settings.toString('utf-8'));
-		
-		process.on('uncaughtException', function (err) {
-			console.error(err);
-			console.log("	! Drone unhandled exception... But continue!");
 		});
 
-		var NS = manifest.namespace;
-		var _NS = "/" + NS;
+		socket.on('disconnect', function () {
 
-		global.reg_session = 'mongodb://' + registry.cluster.split('://')[1] + ':24333';
-
-    	// Initialisation du serveur
-    	var app = express();
-		
-		app.use(require('compression')());
-		app.use(require('morgan')('combined'));
-    	
-		// cookie support
-		app.use(require('cookie-parser')());
-		
-    	var http = app.listen(0, getIPAddress());
-
-    	// Socket SERVER
-		app.IO = require('socket.io')(http);
-		
-		// Cluster manage session
-    	var mongo = require('socket.io-adapter-mongo');
-    	app.IO.adapter(mongo(reg_session+'/io'));
-		
-		
-    	app.IO.on('connection', function (socket) {
-			socket.on('disconnect',function(s){
-				console.log('	* Closing socket id#'+socket.id+' - '+s);
-				app.IO.emit('INSTANCE#OFFLINE',{
-					sid: socket.id
-				});
-			});
-        	console.log('	- Socket id#'+socket.id+' connected.');
-			app.IO.emit('INSTANCE#ONLINE',{
-				uid: global.registry.key
-				, task: global.registry.task
-				, namespace: global.manifest.namespace
-				, sid: socket.id
-				, host: getIPAddress()
-				, pid: process.pid
-				, threads: numCPUs
-				, os: require('os').platform()
-				, release: require('os').release()	
-			});
-			var response = {
-				omneedia: {
-					engine: $_VERSION
-				}
-				, session: socket.id
-			};
-			// Auth socket response
-			OASocketonAuth = function (response) {
-				var r = JSON.parse(response);
-				if (!Clients.uid[r.uid]) Clients.uid[r.uid] = [];
-				if (!Clients.mail[r.mail]) Clients.mail[r.mail] = [];
-				if (Clients.uid[r.uid].indexOf(socket.id) == -1) Clients.uid[r.uid].push(socket.id);
-				if (Clients.mail[r.mail].indexOf(socket.id) == -1) Clients.mail[r.mail].push(socket.id);
-				app.IO.sockets.to(socket.id).emit("#auth", response);
-			};
-			socket.on('#create', function (room) {
-				console.log("- " + room + " joined.");
-				socket.join(room);
-			});
-			socket.on('#send', function (o) {
-				o = JSON.parse(o);
-				console.log(Clients);
-				if (!o.users) {
-					// on envoie qu'à la session en cours
-					app.IO.sockets.to(socket.id).emit(o.uri, o.data);
-				} else {
-					if (Object.prototype.toString.call(o.users) === '[object Array]') {
-						// on envoie qu'aux sockets des élus
-						for (var i = 0; i < o.users.length; i++) {
-							var _id = o.users[i];
-							if (Clients.uid[_id]) {
-								var tab = Clients.uid[_id];
-								for (var j = 0; j < tab.length; j++) app.IO.sockets.to(tab[j]).emit(o.uri, o.data);
-							};
-							if (Clients.mail[_id]) {
-								var tab = Clients.mail[_id];
-								for (var j = 0; j < tab.length; j++) app.IO.sockets.to(tab[j]).emit(o.uri, o.data);
-							};
-						};
-					} else {
-						if (o.users == "*") {
-							// on broadcast à tout le monde connecté à l'application
-							app.IO.sockets.emit(o.uri, o.data);
-						}
-					}
-				};
-			});
-
-			socket.emit('session', JSON.stringify(response));
-    	});
-
-    	app.use(express.static(__dirname + path.sep + "www"));
-
-		app.use(require('body-parser').urlencoded({
-			extended: true
-			, limit: '5000mb'
-		}));
-
-		app.use(require('body-parser').json({
-			limit: "5000mb"
-		}));
-
-		// CORS
-
-		app.use(function(req, res, next) {
-			res.header('Access-Control-Allow-Credentials', true);
-			res.header('Access-Control-Allow-Origin', req.headers.origin);
-			res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-			res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
-			next();
-		});	
-
-		app.use(function (error, req, res, next) {
-			if (error.status === 400) {
-				console.log(error.body);
-				return res.send(400);
-			};
-			console.log(error);
 		});
-		
-		app.get('/stats', function (req, res) {
-			res.writeHead(200, {
-				'Content-Type': 'application/json'
-				, 'charset': 'utf-8'
-			});
-			var p = {};
 
-			var cluster_host = registry.cluster;
+	}
+} else
+{
 
-			p.host = getIPAddress();
-			p.pid = process.pid;
-			p.service = NS;
-			p.cpu = {
-				hostname: os.hostname()
-				, type: os.type()
-				, platform: os.platform()
-				, arch: os.arch()
-				, release: os.release()
-				, uptime: os.uptime()
-				, loadavg: os.loadavg()
-				, totalmem: os.totalmem()
-				, freemem: os.freemem()
-				, cpus: os.cpus()
-			};
-			res.end(JSON.stringify(p, null, 4));
-    	});
+	var express=require("express");
+	var watchr = require('watchr');
+	var shelljs = require('shelljs');
+	var list=[];
+	var ACTIVE=-1;
 
-    	app.get('/favicon.ico', function (req, res) {
-        	fs.readFile(__dirname+path.sep+'www'+path.sep+'index.html',function(e,index) {
-				if (e) return res.status(404).send('Not found');
-				try {
-					var b64=index.toString('utf-8').split("newLink.href='data:image/png;base64,")[1].split("'")[0];
-				} catch(e) {
-					return res.status(404).send('Not found');
-				};
-				res.end(Buffer.from(b64, 'base64'));
-			});
-    	});			
-		
-		app.post('/api', API.processRoute);
-
-    	app.get('/api', function (req, res) {
-        	res.writeHead(200, {
-            	'Content-Type': 'application/json'
-            	, 'charset': 'utf-8'
-        	});
-        	res.end('API Service');
-    	});
-		
-		/*
-		UPLOAD MULTI CLUSTER
-		*/
-
-		var multer = require('multer');
-		var storage = require('gridfs-storage-engine')({
-			url: reg_session + '/upload'
-		});
-		app.UPLOAD = multer({
-			storage: storage
-		});
-		app.upload = app.UPLOAD;
-		
-    	app.get('/tmp/:uid', function (req, res) {
-
-			var file = "/tmp" + path.sep + "tempfiles" + path.sep + req.params.uid;
-			//var _EXT_ = require('./lib/exts')();
-			//var ext=_EXT_.getContentType(req.params.uid);
-			//res.header("Content-Type", ext+"; charset=utf-8");
-			if (!fs.existsSync(file)) {
-				res.sendStatus(404);
-			} else {
-				if (ext=="text/html") {
-					fs.readFile(file,function(e,r) {
-						if (e) return res.status(404).send('Not found');
-						res.end(r.toString('utf-8'));
-					});
-				} else res.download(file);
-				res.on('finish', function () {
-					fs.unlink(file);
-				});
-			}
-    	});		
-		
-		/*
-		SESSION
-		*/
-		
-		var session = require('express-session');
-		
-    	if (reg_session.indexOf('mongodb://') > -1) {
-			var MongoStore = require('connect-mongo')(session);
-			app.use(session({
-				key: 'omneedia'
-				, secret: 'omneedia_rulez'
-				, saveUninitialized: true
-				, resave: true,
-				cookie: {
-					path: '/',
-					domain: registry.uri.substr(registry.uri.indexOf('.'), 255),
-					maxAge: 1000 * 60 * 24 // 24 hours
-				}
-				, store: new MongoStore({
-					url: reg_session
-				})
-			}));
-    	};		
-		
-		// Auth stuff
-		if (global.MSettings.auth) AUTH(app,authom,global.MSettings);
-		
-		// App
-		APP(app,express);
-		
-    	authom.listen(app);	
-		
-		process.on('message', function (message, connection) {
-			if (message !== 'sticky-session:connection') {
-				return;
-			}
-			// Emulate a connection event on the server by emitting the
-			// event with the connection the master sent us.
-			http.emit('connection', connection);
-			connection.resume();
-		});		
-
-	});
-        
-}
-
-function start() {
-
-	if (registry.proxy != "") var Request = request.defaults({
-		'proxy': registry.proxy
-	}); else var Request = request;
-	global.Request = Request;	
-	
-	numCPUs = require('os').cpus().length;
-	
-	if (registry.threads) {
-		if (registry.threads != "*") numCPUs = registry.threads * 1;
+	if (!fs.existsSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"workers.json")) {
+		console.log('!! workers.config not found. FATAL ERROR');
+		return;
 	};
-		
-	if (cluster.isMaster) freeport(master); else server();
-		
-};
 
-read_registry(function() {
-	read_manifest(start);
-});
+	if (!fs.existsSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"service.template")) {
+		console.log('!! service.template not found. FATAL ERROR');
+		return;
+	};
+	try {
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+"drones")) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+"drones");
+	}catch(e){};
+	try {
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+"tmp")) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+"tmp");
+	}catch(e){};
+	try {
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+"packages")) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+"packages");
+	}catch(e){};
+
+	function processFiles(item)
+	{
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+"tmp")) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+"tmp");
+		// unzip files
+		var AdmZip = require('adm-zip');
+		var zip = new AdmZip(item);
+		var zipEntries = zip.getEntries();
+		var info=zipEntries[0].entryName.split(path.sep);
+		var info_path=zipEntries[0].entryName.substr(0,zipEntries[0].entryName.lastIndexOf(path.sep));
+		var info_version=info[0];
+		var info_namespace=info[1];
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+info_namespace)) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+info_namespace);
+		zip.extractAllTo(__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+info_namespace);
+
+		var p=__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+info_namespace+path.sep+info_path;
+		var d=__dirname+path.sep+'..'+path.sep+"drones"+path.sep+info_namespace;
+		if (!fs.existsSync(d)) fs.mkdirSync(d);
+		d+=path.sep+info_version;
+		if (!fs.existsSync(d)) fs.mkdirSync(d);
+		var contents=p+path.sep+"Contents"+path.sep;
+		if (!fs.existsSync(contents+"app.manifest")) {
+			return;
+		};
+		if (!fs.existsSync(contents+"etc"+path.sep+"settings-prod.json")) {
+			return;
+		};
+		// console.log(p+path.sep+".."+path.sep+".."+path.sep+"registry.json");
+		if (!fs.existsSync(p+path.sep+".."+path.sep+".."+path.sep+"registry.json")) {
+			return;
+		} else shelljs.mv(p+path.sep+".."+path.sep+".."+path.sep+"registry.json",p);
+
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'var')) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'var');
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'var'+path.sep+"log")) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'var'+path.sep+"log");
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'var'+path.sep+'pids')) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'var'+path.sep+'pids');
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'var'+path.sep+'pids'+path.sep+item.split('.drone')[0].substr(item.lastIndexOf(path.sep)+1,255))) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'var'+path.sep+'pids'+path.sep+item.split('.drone')[0].substr(item.lastIndexOf(path.sep)+1,255));
+
+		var config=JSON.parse(fs.readFileSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"workers.json","utf-8"));
+
+		// on lance npm
+		if (config.proxy) {
+			console.log('Configuring proxy');
+			shelljs.exec('cd "'+p+path.sep+'Contents" && "'+__dirname+path.sep+'nodejs'+path.sep+'bin'+path.sep+'npm" config set proxy '+config.proxy);
+			shelljs.exec('cd "'+p+path.sep+'Contents" && "'+__dirname+path.sep+'nodejs'+path.sep+'bin'+path.sep+'npm" config set https-proxy '+config.proxy);
+			shelljs.exec('git config --global http.proxy '+config.proxy);
+			shelljs.exec('git config --global https.proxy '+config.proxy);
+		};
+		if (!config.alias) {
+			var shortid=require('shortid');
+			config.alias=shortid.generate();
+			fs.writeFileSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"workers.json",JSON.stringify(config,null,4));
+		};
+		shelljs.exec('git config --global url."https://".insteadOf git://');
+		shelljs.exec('cd "'+p+path.sep+'Contents" && "'+__dirname+path.sep+'nodejs'+path.sep+'bin'+path.sep+'npm" install git+http://github.com/Omneedia/api.git');
+		shelljs.exec('cd "'+p+path.sep+'Contents" && "'+__dirname+path.sep+'nodejs'+path.sep+'bin'+path.sep+'npm" install git+http://github.com/Omneedia/authom.git');
+		shelljs.exec('cd "'+p+path.sep+'Contents" && "'+__dirname+path.sep+'nodejs'+path.sep+'bin'+path.sep+'npm" install git+http://github.com/Omneedia/db.git');
+		shelljs.exec('cd "'+p+path.sep+'Contents" && "'+__dirname+path.sep+'nodejs'+path.sep+'bin'+path.sep+'npm" install');
+		var etc=JSON.parse(fs.readFileSync(contents+"etc"+path.sep+"settings-prod.json",'utf-8'));
+		if (etc.remote) var url=etc.remote.app;
+		if (url.indexOf('http://')>-1) url=url.split('http://')[1];
+		var _dir="/etc/init/"+info_namespace+".conf";
+		var _dir2="/etc/systemd/system/"+info_namespace+".service";
+		var tpl=fs.readFileSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"service.template","utf-8");
+		var tpl2=fs.readFileSync(__dirname+path.sep+".."+path.sep+"config"+path.sep+"systemd.template","utf-8");
+		var pp=path.resolve(__dirname+path.sep+".."+path.sep+"drones");
+		var str=__dirname+path.sep+"nodejs"+path.sep+"bin"+path.sep+"node \""+d+path.sep+"Contents"+path.sep+"worker.js\"";
+		tpl=tpl.replace(/{DRONE.PATH}/g,str);
+		tpl=tpl.replace(/{DRONE.NS}/g,info_namespace);
+		tpl2=tpl2.replace(/{DRONE.PATH}/g,str);
+		tpl2=tpl2.replace(/{DRONE.NS}/g,info_namespace);
+		fs.writeFileSync(_dir,tpl);
+		fs.writeFileSync(_dir2,tpl2);
+		shelljs.exec('service '+info_namespace+' stop');
+		shelljs.exec('systemctl daemon-reload');
+		shelljs.mv(p+path.sep+"*",d);
+		shelljs.rm('-rf',__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+info_namespace);
+		shelljs.exec('service '+info_namespace+' start');
+		shelljs.rm(item);
+	};
+
+	var app = express();
+
+	app.use(require('morgan')("dev"));
+	app.use(require('cookie-parser')());
+	app.use(require('body-parser').urlencoded({
+		extended: true,
+		limit: "5000mb"
+	}));
+	app.use(require('body-parser').json({
+		limit: "5000mb"
+	}));
+	app.get('/',function(req,res) {
+		var response={
+			"omneedia" : OMNEEDIA
+		};
+		res.writeHead(200, {'Content-Type' : 'application/json','charset' : 'utf-8'});
+		res.end(JSON.stringify(response,null,4));
+		return;
+	});
+	app.get('/api',function(req,res) {
+		res.writeHead(200, {'Content-Type' : 'application/json','charset' : 'utf-8'});
+		res.end(JSON.stringify({omneedia: OMNEEDIA},null,4));
+		return;
+	});
+	app.get('/stats',function(req,res){
+		var pusage=require('pidusage');
+		pusage.stat(process.pid, function(err, stat) {
+			res.end(JSON.stringify(stat));
+		});
+	});
+
+	var multer=require('multer');
+	if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+"tmp")) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+"tmp");
+    var storage = multer.diskStorage({
+      destination: function (req, file, cb) {
+        cb(null, __dirname+require('path').sep+'..'+require('path').sep+'tmp')
+      },
+      filename: function (req, file, cb) {
+        cb(null, file.originalname)
+      }
+    });
+
+    var UPLOAD = multer({ storage: storage })
+
+	app.post('/upload',UPLOAD.single("file"),function(req,res,next){
+		// Are you in my access list ?
+			console.log('-----------');
+			console.log(req.file);
+			if(req.file){
+				processFiles(req.file.path);
+				res.end("File uploaded.");
+			}
+	});
+
+	app.post('/sandbox',UPLOAD.single("file"),function(req,res,next){
+		var path=require('path');
+		var jsoconf=JSON.parse(fs.readFileSync(__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'config'+path.sep+'sandbox.json'));
+		shelljs.exec(__dirname+path.sep+'7z x "'+req.file.path+'" -o"'+__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+req.file.path.split('snapshot.')[1]+'"');
+		shelljs.rm(req.file.path);
+		if (!fs.existsSync(__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid)) fs.mkdirSync(__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid); else {
+			if (fs.existsSync(__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid+path.sep+req.body.pkg)) shelljs.rm('-Rf',__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid+path.sep+req.body.pkg);
+		};
+		shelljs.mv(__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+req.file.path.split('snapshot.')[1]+path.sep+".tmp",__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid+path.sep+req.body.pkg);
+		process.chdir(__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid+path.sep+req.body.pkg);
+		console.log(__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'var'+path.sep+req.body.pid+path.sep+req.body.pkg);
+		shelljs.rm('-Rf',__dirname+path.sep+'..'+path.sep+"tmp"+path.sep+req.file.path.split('snapshot.')[1]);
+		var uri=req.body.uri;
+		var pkg=req.body.pkg;
+		var prefix=req.body.pid;
+		var path=require('path');
+		var oa=__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'bin'+path.sep+'oa';
+		var ob=oa+" update --sandbox --user "+prefix+" --app "+pkg;
+		shelljs.exec(ob,{silent: false});
+		// on lance le process
+		freeport(function(err,port) {
+			var spawn = require('child_process').spawn;
+			var prc = spawn('nohup',  [oa, 'start', '--port',port,'--app',pkg, '--sandbox','--user',prefix,'&>log','&']);
+			var ofile=__dirname+path.sep+'..'+path.sep+'..'+path.sep+'Sandbox'+path.sep+'pids'+path.sep+prefix+'.'+pkg+'.inf';
+			fs.writeFileSync(ofile,port+':XXX:'+prefix+'.'+pkg+'.'+jsoconf.domain);
+			if (fs.existsSync(ofile)) ofile=fs.readFileSync(ofile,'utf-8').split(':');
+			res.end('{"url":"'+ofile[2]+'","success": true}');
+		});
+	});
+
+	app.enable('trust proxy');
+	app.listen(Config.port);
+}
