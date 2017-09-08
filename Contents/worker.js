@@ -84,10 +84,7 @@ function freeport(cb) {
 // read Registry
 function read_registry(cb) {
 	fs.readFile(__dirname + require('path').sep + '..' + require('path').sep + 'registry.json',function(e,r) {
-		if (e) {
-			global.registry = process.env;
-			cb(); 
-		} else {
+		if (e) return cb(process.env); else {
 			global.registry = JSON.parse(r.toString('utf-8'));
 			cb();
 		};
@@ -116,15 +113,25 @@ function master(err,port) {
 		console.log("	- Connecting to cluster " + cluster_host);
 		
 		// SOCKET CLIENT
-		global.socket = io(cluster_host, {
+		var socket = io(cluster_host, {
 			query: "engine=instance&registry="+registry.key+"&iokey=" + setToken()
 		});
 
-        global.socket.on('disconnect', function () {
+        socket.on('disconnect', function () {
             console.log("	! Loosing cluster...");
         });
 	
-        global.socket.on('connect', function () {
+		// Sockets relay
+		socket.on('INSTANCE#ONLINE',function(data) {
+			socket.emit('INSTANCE#ONLINE',data);
+			console.log('[+] client connected uid#'+data.sid);
+		});	
+		socket.on('INSTANCE#OFFLINE',function(data) {
+			socket.emit('INSTANCE#OFFLINE',data);
+			console.log('[-] client uid#'+data.sid+' disconnected.');
+		});	
+	
+        socket.on('connect', function () {
             console.log('	  Cluster Connected.');
 			/*socket.emit('OASERVICE#ONLINE', {
 				service: "instance"
@@ -145,13 +152,13 @@ function master(err,port) {
 				}
 			});	*/	
 		});
-		global.socket.on('REGISTER_PROFILE',function(config) {
+		socket.on('REGISTER_PROFILE',function(config) {
 			fs.writeFile(__dirname+path.sep+'auth'+path.sep+'Profiler.json',JSON.stringify(config),function() {
 				console.log('	! Updating profile.');	
 			});
 
 		});
-		global.socket.on('REGISTER_WORKER',function(config) {
+		socket.on('REGISTER_WORKER',function(config) {
 			fs.writeFile(__dirname+path.sep+'etc'+path.sep+'settings.json',JSON.stringify(JSON.parse(config)),function() {
 				console.log('	  # Registered.');
 				if (!$_FIRST) return;
