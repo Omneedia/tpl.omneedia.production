@@ -1,6 +1,0 @@
-{
-	"cluster": "address:port",
-	"uri": "mywebsite.com",
-	"threads": "*",
-	"key": "xxx"
-}
