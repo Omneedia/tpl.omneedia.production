@@ -32,7 +32,8 @@
 	"parse-function": "5.0.10",
     "socket.io-adapter-mongo": "git+https://github.com/omneedia/socket.io-adapter-mongo.git#v2.0.0",
     "socket.io-client": "2.0.3",
-    "xcas": "0.1.0"
+    "xcas": "0.1.0",
+	"callsite": "^1.0.0"
   },
   "devDependencies": {},
   "scripts": {
