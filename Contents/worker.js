@@ -470,6 +470,7 @@ function start() {
 		'proxy': registry.proxy
 	}); else var Request = request;
 	global.Request = Request;	
+	global.request = Request;
 	
 	numCPUs = require('os').cpus().length;
 	
