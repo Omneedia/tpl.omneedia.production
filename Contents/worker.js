@@ -205,7 +205,7 @@ function server() {
 	console.log("	+ Thread started.");
 	fs.readFile(__dirname + path.sep + 'etc' + path.sep + 'settings.json',function(e,settings) {
 		
-		global.MSettings = JSON.parse(settings.toString('utf-8'));
+		global.settings = JSON.parse(settings.toString('utf-8'));
 		
 		process.on('uncaughtException', function (err) {
 			console.error(err);
@@ -443,7 +443,7 @@ function server() {
     	};		
 		
 		// Auth stuff
-		if (global.MSettings.auth) AUTH(app,authom,global.MSettings);
+		if (global.settings.auth) AUTH(app,authom,global.settings);
 		
 		// App
 		APP(app,express);
