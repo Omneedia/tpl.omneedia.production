@@ -102,8 +102,8 @@ function read_manifest(cb) {
 function master(err,port) {
 		
 		var workers = [];
-		// test
-		port=3000;
+		port=registry['port'];
+		if (!port) port=3000;
         
 		console.log('Omneedia Worker started at ' + getIPAddress() + ":" + port + " (" + numCPUs + " threads)");
 	
